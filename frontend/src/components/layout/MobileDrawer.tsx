@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useLanguage, Language } from '../../lib/i18n.tsx';
@@ -25,28 +25,81 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ isOpen, onClose, onLogout }: MobileDrawerProps) {
-  const { role, resident, watchman } = useAuth();
+  const { role, user, resident, watchman } = useAuth();
   const { t, language, setLanguage } = useLanguage();
 
-  // Handle body scroll lock & escape key
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  // Hold the latest onClose in a ref instead of depending on it directly:
+  // Navbar passes a fresh inline arrow on every render, which would otherwise
+  // re-run the effect below each time and thrash scroll lock + focus.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Body scroll lock, escape key, and focus management for the modal drawer.
   useEffect(() => {
     if (!isOpen) return;
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
+    // Remember what opened the drawer so focus can be handed back on close.
+    triggerRef.current = document.activeElement as HTMLElement | null;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      // This is an aria-modal dialog, so the page behind it must not be
+      // reachable by keyboard. Cycle focus within the panel instead.
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+
+      if (focusables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
+
+    // Move focus into the drawer so it is announced to screen readers.
+    const raf = requestAnimationFrame(() => closeButtonRef.current?.focus());
+
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(raf);
+      triggerRef.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -68,17 +121,19 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: MobileDrawerProps) {
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Slide-over panel */}
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Navigation Menu"
-        className="relative w-full max-w-[320px] xs:max-w-xs bg-[#FAF7F0] h-full shadow-2xl flex flex-col justify-between z-10 border-l border-[#DDD5C5] animate-in slide-in-from-right duration-250 ease-out overflow-y-auto"
+        tabIndex={-1}
+        className="relative w-[86vw] max-w-[320px] bg-[#FAF7F0] h-full shadow-2xl flex flex-col justify-between z-10 border-l border-[#DDD5C5] animate-slide-in-right overflow-y-auto focus:outline-hidden"
       >
         <div className="p-4 sm:p-5">
           {/* Header */}
@@ -97,6 +152,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: MobileDrawerProps) {
               </div>
             </div>
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClose}
               className="min-w-[44px] min-h-[44px] p-2 rounded-lg text-[#666666] hover:text-[#111111] hover:bg-[#EAE4D7] active:bg-[#DDD5C5] transition-colors flex items-center justify-center focus:outline-hidden"
@@ -124,7 +180,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: MobileDrawerProps) {
                 {role === 'RESIDENT' && resident
                   ? resident.full_name
                   : role === 'ADMIN'
-                  ? 'Ramesh Sharma'
+                  ? user?.full_name || 'Administrator'
                   : watchman?.full_name || 'Gate Watchman'}
               </p>
               {role === 'RESIDENT' && resident && (
@@ -150,7 +206,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: MobileDrawerProps) {
                     type="button"
                     onClick={() => setLanguage(opt.id)}
                     className={cn(
-                      'min-h-[38px] py-1.5 px-2 rounded-lg text-xs font-semibold transition-all select-none flex flex-col items-center justify-center text-center',
+                      'min-h-[44px] py-1.5 px-2 rounded-lg text-xs font-semibold transition-all select-none flex flex-col items-center justify-center text-center',
                       active
                         ? 'bg-[#2C5E3B] text-white shadow-xs font-bold'
                         : 'bg-[#FAF7F0] text-[#555555] hover:bg-[#EAE4D7] hover:text-[#111111]'
