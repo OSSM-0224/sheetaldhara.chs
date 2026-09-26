@@ -1,0 +1,186 @@
+{
+  "users": [
+    {
+      "id": "admin-1",
+      "phone": "9820011223",
+      "password_hash": "$2b$10$Pc5vY48H04CVzFqzX9TmWeK/KkrKEt/SANUc.scf8kXZWj.NXt4Xu",
+      "role": "ADMIN",
+      "full_name": "Ramesh Sharma",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "watchman-1",
+      "phone": "9820099001",
+      "password_hash": "$2b$10$juRXx4Odyfy89IJNhkTeLOsOPJoH0okiUHonRWixySBAeLhfVOLCK",
+      "role": "WATCHMAN",
+      "full_name": "Sanjay Yadav",
+      "status": "active",
+      "created_at": "2026-09-25T12:20:43.231Z"
+    }
+  ],
+  "residents": [
+    {
+      "id": "res-admin-1",
+      "full_name": "Ramesh Sharma",
+      "room_number": "A-101",
+      "phone": "9820011223",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "res-priya-2",
+      "full_name": "Priya Nair",
+      "room_number": "B-304",
+      "phone": "9820022334",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "res-amitabh-3",
+      "full_name": "Amitabh Sen",
+      "room_number": "C-702",
+      "phone": "9820033445",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "res-sneha-4",
+      "full_name": "Sneha Kulkarni",
+      "room_number": "A-502",
+      "phone": "9820044556",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "res-vikram-5",
+      "full_name": "Vikram Malhotra",
+      "room_number": "D-201",
+      "phone": "9820055667",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "res-kavita-6",
+      "full_name": "Kavita Rao",
+      "room_number": "B-103",
+      "phone": "9820066778",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "0dc6534b-9635-4131-8e41-189161d62855",
+      "full_name": "OM YASHWANT MHATRE",
+      "room_number": "G-201",
+      "phone": "7506380156",
+      "created_at": "2026-09-03T14:26:09.335Z"
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "veh-1",
+      "resident_id": "res-priya-2",
+      "vehicle_type": "CAR",
+      "brand": "Honda",
+      "model": "City",
+      "normalized_plate": "MH02AB4821",
+      "last_four_digits": "4821",
+      "parking_number": "P-24",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-2",
+      "resident_id": "res-amitabh-3",
+      "vehicle_type": "BIKE",
+      "brand": "Royal Enfield",
+      "model": "Classic 350",
+      "normalized_plate": "MH12CD4821",
+      "last_four_digits": "4821",
+      "parking_number": null,
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-3",
+      "resident_id": "res-sneha-4",
+      "vehicle_type": "CAR",
+      "brand": "Hyundai",
+      "model": "Creta",
+      "normalized_plate": "MH01EF9090",
+      "last_four_digits": "9090",
+      "parking_number": "P-15",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-4",
+      "resident_id": "res-sneha-4",
+      "vehicle_type": "BIKE",
+      "brand": "Ather",
+      "model": "450X Gen 3",
+      "normalized_plate": "MH47XY9090",
+      "last_four_digits": "9090",
+      "parking_number": null,
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-5",
+      "resident_id": "res-sneha-4",
+      "vehicle_type": "BIKE",
+      "brand": "TVS",
+      "model": "Jupiter",
+      "normalized_plate": "MH01GH3312",
+      "last_four_digits": "3312",
+      "parking_number": null,
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-6",
+      "resident_id": "res-vikram-5",
+      "vehicle_type": "CAR",
+      "brand": "Tata",
+      "model": "Nexon EV",
+      "normalized_plate": "MH04JK1100",
+      "last_four_digits": "1100",
+      "parking_number": "P-09",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-7",
+      "resident_id": "res-vikram-5",
+      "vehicle_type": "CAR",
+      "brand": "Maruti Suzuki",
+      "model": "Swift ZXi",
+      "normalized_plate": "MH02MN7766",
+      "last_four_digits": "7766",
+      "parking_number": "P-10",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    },
+    {
+      "id": "veh-8",
+      "resident_id": "res-admin-1",
+      "vehicle_type": "CAR",
+      "brand": "Toyota",
+      "model": "Innova Crysta",
+      "normalized_plate": "MH03PQ5544",
+      "last_four_digits": "5544",
+      "parking_number": "P-01",
+      "created_at": "2026-09-03T14:17:54.157Z"
+    }
+  ],
+  "search_logs": [
+    {
+      "id": "log-0d34677a-5443-45df-bb17-c7a272637e0b",
+      "searched_by_resident_id": "ADMIN",
+      "search_query": "4821",
+      "matched_vehicle_id": null,
+      "created_at": "2026-09-25T12:23:59.953Z"
+    },
+    {
+      "id": "log-f90a4db8-cce3-4ad3-ae1d-8ca4e4984250",
+      "searched_by_resident_id": "res-admin-1",
+      "search_query": "4821",
+      "matched_vehicle_id": null,
+      "created_at": "2026-09-25T12:20:45.647Z"
+    },
+    {
+      "id": "log-1",
+      "searched_by_resident_id": "res-priya-2",
+      "search_query": "4821",
+      "matched_vehicle_id": "veh-2",
+      "created_at": "2026-09-03T13:17:54.158Z"
+    }
+  ],
+  "outsider_vehicles": []
+}

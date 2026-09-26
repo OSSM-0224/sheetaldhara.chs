@@ -1,0 +1,12 @@
+{
+  "name": "society-vehicle-lookup-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/index.js",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit"
+  }
+}
