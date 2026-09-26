@@ -31,6 +31,5 @@ const watchmanSchema = new Schema<IWatchman>(
   }
 );
 
-watchmanSchema.index({ phone: 1 });
-
+// phone is already indexed by its `unique: true` above.
 export const Watchman = model<IWatchman>('Watchman', watchmanSchema);

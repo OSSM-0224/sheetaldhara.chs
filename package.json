@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "dev": "tsx backend/src/index.ts",
+    "build": "vite build && npm run build:server",
+    "build:server": "esbuild backend/src/index.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist-server/server.cjs",
+    "build:frontend": "vite build",
+    "start": "node dist-server/server.cjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "node -e \"const f=require('fs');for(const d of ['dist','dist-server'])f.rmSync(d,{recursive:true,force:true})\"",
     "lint": "tsc --noEmit && npm run typecheck",
     "typecheck": "tsc -p frontend/tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit"
   },

@@ -46,9 +46,8 @@ const vehicleSchema = new Schema<IVehicle>(
   }
 );
 
-// CRITICAL: index on plate — this is the single most important index in the whole app,
-// since every search hits this field.
-vehicleSchema.index({ plate: 1 });
+// plate is already indexed by its `unique: true` above, which is the index every
+// search hits. Only the owner lookup needs an explicit index.
 vehicleSchema.index({ resident_id: 1 });
 
 export const Vehicle = model<IVehicle>('Vehicle', vehicleSchema);

@@ -162,11 +162,12 @@ For testing and evaluation, the application includes pre-seeded demo records:
 - **Bcrypt.js (`bcryptjs`)** for secure administrator password hashing
 
 ### Persistence Layer
-- **Persistent JSON Database Engine** (`data/society_db.json`)
-  - Atomic disk writes with error recovery
-  - Automatic directory initialization (`/data`)
-  - Normalized plate indexing and relational consistency checks between residents and vehicles
-  - Pre-seeded with realistic Mumbai housing society data
+- **MongoDB via Mongoose** (MongoDB Atlas or a local `mongod`)
+  - Mongoose schemas with unique constraints on `Resident.room_number`, `Resident.phone`, `Admin.phone`, `Watchman.phone`, and `Vehicle.plate`
+  - Compound index on `(room_number, phone)` for passwordless resident sign-in
+  - `backend/src/db/seed.ts` seeds a realistic Mumbai housing society dataset when the database is empty
+
+> MongoDB is the only data store. `MONGODB_URI` must be set and reachable or the server refuses to start — there is no silent fallback to a local file.
 
 ---
 
@@ -179,26 +180,29 @@ For testing and evaluation, the application includes pre-seeded demo records:
 │   └── legacy-frontend/
 │       └── src/                # Archived pre-frontend/ React source
 ├── backend/
-│   ├── data/                   # Preserved alternate local database; not the runtime store
-│   └── src/                    # Express API, MongoDB models, and controllers
-├── data/
-│   └── society_db.json         # Persistent local fallback database
+│   └── src/                    # Express API, entrypoint, MongoDB models and controllers
+│       ├── index.ts            # Single entrypoint: connectDB + createApp + listen
+│       ├── app.ts              # Express app assembly
+│       ├── config/             # env, db connection, cookie options
+│       ├── controllers/        # Request handlers
+│       ├── db/seed.ts          # Demo dataset seeding
+│       ├── middleware/         # auth, cors, rate limiters, error handler
+│       ├── models/             # Mongoose schemas
+│       ├── routes/             # Route definitions
+│       ├── types/
+│       └── utils/
 ├── frontend/
 │   ├── index.html              # Active frontend entry point
 │   └── src/                    # Active React application
-├── server/
-│   ├── auth.ts
-│   ├── db.ts
-│   ├── routes.ts
-│   └── utils.ts
-├── server.ts                    # Root development and production entry point
+├── render.yaml                 # Render blueprint (API)
+├── vercel.json                 # Vercel config (frontend)
 ├── vite.config.ts
 ├── package.json
 ├── tsconfig.json
 └── tsconfig.base.json
 ```
 
-The application is root-centric: run commands from the repository root. `backend/` and `frontend/` contain the active split application, while root `server/` provides the persistent JSON fallback used when MongoDB is unavailable.
+Run all commands from the repository root. `backend/` holds the API (entrypoint `backend/src/index.ts`) and `frontend/` holds the React client. The two deploy independently: the API to Render, the client to Vercel.
 
 ---
 

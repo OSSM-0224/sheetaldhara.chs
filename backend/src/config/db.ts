@@ -9,22 +9,17 @@ function describe(err: unknown): string {
 }
 
 /**
- * MONGODB_URI unset -> local JSON store (development, single instance only).
- * MONGODB_URI set   -> MongoDB is required; startup fails if it cannot be reached.
+ * MongoDB is the only data store. MONGODB_URI must be set and must be reachable,
+ * otherwise startup fails loudly rather than serving requests with no database.
  */
 export async function connectDB(): Promise<void> {
   if (!ENV.MONGODB_URI) {
-    console.warn(
-      '[Database] MONGODB_URI is not set. Using the local JSON store: data is not shared between instances and is lost on restart.'
-    );
-    return;
+    throw new Error('MONGODB_URI is not set. Configure it before starting the server.');
   }
 
   try {
     await mongoose.connect(ENV.MONGODB_URI, { serverSelectionTimeoutMS: CONNECT_TIMEOUT_MS });
   } catch (err) {
-    // MONGODB_URI is configured, so silently using the per-instance JSON store here would
-    // split data across instances and lose writes on restart. Fail loudly instead.
     console.error('[Database] Could not connect to MongoDB:', describe(err));
     throw err;
   }
@@ -46,21 +41,12 @@ export function isDbConnected(): boolean {
   return mongoose.connection.readyState === 1;
 }
 
-/** True only when MongoDB was deliberately left unconfigured. */
-export function isLocalMode(): boolean {
-  return !ENV.MONGODB_URI;
-}
-
 export function getDbStatus() {
   const connected = isDbConnected();
   return {
     connected,
-    mode: connected ? 'mongodb' : 'local_storage',
-    message: connected
-      ? 'Connected to MongoDB'
-      : isLocalMode()
-        ? 'MONGODB_URI is not set; using the local JSON store.'
-        : 'MongoDB is not connected. Configured MONGODB_URI is not being used.',
+    mode: connected ? 'mongodb' : 'disconnected',
+    message: connected ? 'Connected to MongoDB' : 'MongoDB connection lost.',
   };
 }
 

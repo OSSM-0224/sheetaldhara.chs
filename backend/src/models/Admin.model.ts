@@ -30,6 +30,5 @@ const adminSchema = new Schema<IAdmin>(
   }
 );
 
-adminSchema.index({ phone: 1 });
-
+// phone is already indexed by its `unique: true` above.
 export const Admin = model<IAdmin>('Admin', adminSchema);

@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import { ENV } from '../config/env.ts';
 import { Resident, Admin, Watchman } from '../models/index.ts';
-import { db } from '../../../server/db.ts';
 import { UserRole, JWTPayload } from '../types/index.ts';
 
 export interface AuthenticatedUser {
@@ -57,29 +55,6 @@ export async function parseSession(req: AuthenticatedRequest, res: Response, nex
 
     const decoded = jwt.verify(token, ENV.JWT_SECRET) as JWTPayload;
     req.role = decoded.role;
-
-    if (mongoose.connection.readyState !== 1) {
-      if (decoded.role === 'RESIDENT' && decoded.residentId) {
-        const residentObj = db.findResidentById(decoded.residentId);
-        if (residentObj) {
-          req.resident = residentObj as any;
-        }
-      } else if (decoded.userId) {
-        if (decoded.role === 'ADMIN') {
-          const adminObj = db.getAdminUser();
-          if (adminObj) {
-            req.user = adminObj as any;
-          }
-        } else if (decoded.role === 'WATCHMAN') {
-          const watchmanObj = db.findWatchmanById(decoded.userId);
-          if (watchmanObj && watchmanObj.status !== 'inactive') {
-            req.user = watchmanObj as any;
-            req.watchman = watchmanObj as any;
-          }
-        }
-      }
-      return next();
-    }
 
     if (decoded.role === 'RESIDENT' && decoded.residentId) {
       const resDoc = await Resident.findById(decoded.residentId);

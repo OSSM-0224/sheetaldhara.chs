@@ -1,0 +1,23 @@
+# Render blueprint for the API only. The frontend deploys separately to Vercel.
+# Set MONGODB_URI, ADMIN_PASSWORD and CORS_ORIGINS in the Render dashboard.
+services:
+  - type: web
+    name: sheetaldhara-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build:server
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true

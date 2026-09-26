@@ -3,14 +3,7 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { Resident, Admin, Watchman } from '../models/index.ts';
 import { AuthenticatedRequest, generateToken } from '../middleware/auth.ts';
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  path: '/',
-};
+import { SESSION_COOKIE_OPTIONS } from '../config/cookies.ts';
 
 export async function residentSignin(req: AuthenticatedRequest, res: Response) {
   try {
@@ -50,7 +43,7 @@ export async function residentSignin(req: AuthenticatedRequest, res: Response) {
       residentId: resident._id.toString(),
     });
 
-    res.cookie('society_token', token, COOKIE_OPTIONS);
+    res.cookie('society_token', token, SESSION_COOKIE_OPTIONS);
 
     return res.json({
       role: 'RESIDENT',
@@ -95,7 +88,7 @@ export async function adminLogin(req: AuthenticatedRequest, res: Response) {
       userId: admin._id.toString(),
     });
 
-    res.cookie('society_token', token, COOKIE_OPTIONS);
+    res.cookie('society_token', token, SESSION_COOKIE_OPTIONS);
 
     return res.json({
       role: 'ADMIN',
@@ -150,7 +143,7 @@ export async function watchmanLogin(req: AuthenticatedRequest, res: Response) {
     });
 
     res.cookie('society_token', token, {
-      ...COOKIE_OPTIONS,
+      ...SESSION_COOKIE_OPTIONS,
       maxAge: 12 * 60 * 60 * 1000, // 12 hours shift session
     });
 

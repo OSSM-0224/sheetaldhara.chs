@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './routes/index.ts';
 import { parseSession } from './middleware/auth.ts';
+import { cors } from './middleware/cors.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
 
 export async function createApp() {
@@ -14,6 +15,9 @@ export async function createApp() {
 
   // Trust reverse proxy (Cloud Run / load balancer) for accurate IP resolution
   app.set('trust proxy', 1);
+
+  // Must run before routes so preflights and error responses are handled too.
+  app.use(cors);
 
   // Basic security and parsing middlewares
   app.use(express.json());
@@ -42,7 +46,10 @@ export async function createApp() {
     const rootDist = path.join(projectRoot, 'dist');
     const distPath = fs.existsSync(frontendDist) ? frontendDist : rootDist;
 
-    if (fs.existsSync(distPath)) {
+    // Only serve static files when a real frontend build is present. On an API-only
+    // deploy `dist/` holds just the server bundle, and statically serving it would
+    // publish server.cjs and its source map to anyone who requests them.
+    if (fs.existsSync(path.join(distPath, 'index.html'))) {
       app.use(express.static(distPath));
       app.get('*', (req, res, next) => {
         if (req.path.startsWith('/api')) {
