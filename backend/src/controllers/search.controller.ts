@@ -176,13 +176,16 @@ export async function searchVehicles(req: AuthenticatedRequest, res: Response) {
     // Record Search Log (non-blocking)
     const searcherType = req.role === 'RESIDENT' ? 'resident' : req.role === 'ADMIN' ? 'admin' : 'watchman';
     const searcherId = req.resident?._id || req.user?._id || req.watchman?._id || 'system';
+    const matchedPlates = matches.map((m) => m.normalized_plate).filter(Boolean);
 
     SearchLog.create({
       query_term: rawQuery,
       searched_by_type: searcherType,
       searched_by_id: searcherId,
-      matched_plate: matches.length > 0 ? matches[0].normalized_plate : undefined,
+      matched_plate: matchedPlates[0],
       match_source: matches.length > 0 ? (matches[0].source === 'resident' ? 'registered' : 'outsider') : 'none',
+      match_count: matches.length,
+      matched_plates: matchedPlates.slice(0, 25),
     }).catch((logErr) => {
       console.warn('[SearchLog] Warning: failed to write search log:', logErr?.message || logErr);
     });

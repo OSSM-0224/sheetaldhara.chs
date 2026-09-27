@@ -271,7 +271,7 @@ export function AdminResidentsPage() {
                   required
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="9820011223"
+                  placeholder="98200 00000"
                   className="w-full px-3 py-2 rounded-lg border border-[#DDD5C5] text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
                 />
               </div>

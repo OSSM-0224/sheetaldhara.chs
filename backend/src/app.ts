@@ -6,7 +6,9 @@ import { createServer as createViteServer } from 'vite';
 import { apiRouter } from './routes/index.ts';
 import { parseSession } from './middleware/auth.ts';
 import { cors } from './middleware/cors.ts';
+import { enforceTrustedOrigin } from './middleware/csrf.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
+import { ENV } from './config/env.ts';
 
 export async function createApp() {
   const app = express();
@@ -19,9 +21,16 @@ export async function createApp() {
   // Must run before routes so preflights and error responses are handled too.
   app.use(cors);
 
+  // Reject state-changing requests from origins outside the allowlist. Runs after
+  // cors() so OPTIONS preflights are already short-circuited.
+  app.use(enforceTrustedOrigin);
+
   // Basic security and parsing middlewares
   app.use(express.json());
-  app.use(cookieParser());
+  // Sign cookies with COOKIE_SECRET. The JWT signature is the real integrity
+  // check on society_token, but signing means a tampered cookie is rejected at
+  // the edge rather than being parsed as if it were valid.
+  app.use(cookieParser(ENV.COOKIE_SECRET));
   app.use(parseSession);
 
   // Mount all API routes under /api

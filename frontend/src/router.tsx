@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.ts';
 
 import { LoginPage } from './pages/LoginPage.tsx';
+import { AdminLoginPage } from './pages/AdminLoginPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { MyVehiclesPage } from './pages/MyVehiclesPage.tsx';
 import { WatchmanPage } from './pages/WatchmanPage.tsx';
@@ -54,6 +55,11 @@ export const router = createBrowserRouter([
     path: '/login',
     element: <LoginPage />,
   },
+  // Public Admin Login (kept off the main portal login on purpose)
+  {
+    path: '/admin/login',
+    element: <AdminLoginPage />,
+  },
   // Resident & Admin accessible routes
   {
     element: <ProtectedRoute allowedRoles={['RESIDENT', 'ADMIN']} />,
@@ -86,7 +92,7 @@ export const router = createBrowserRouter([
   },
   // Admin-only routes
   {
-    element: <ProtectedRoute allowedRoles={['ADMIN']} />,
+    element: <ProtectedRoute allowedRoles={['ADMIN']} loginPath="/admin/login" />,
     children: [
       {
         path: '/admin/residents',

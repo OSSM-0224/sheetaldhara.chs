@@ -89,9 +89,20 @@ export async function markExit(req: AuthenticatedRequest, res: Response) {
       return res.status(503).json({ error: 'Database not connected.' });
     }
 
-    const vehicle = await OutsiderVehicle.findById(id).populate('added_by_watchman_id', 'full_name');
+    const watchmanId = req.watchman?.id || req.watchman?._id;
+
+    // Scope to the entries this watchman created. getMyEntries already scopes by
+    // added_by_watchman_id, so without this filter a guard could close out a
+    // peer's gate records and falsify the entry/exit audit trail.
+    const vehicle = await OutsiderVehicle.findOne({
+      _id: id,
+      added_by_watchman_id: watchmanId,
+    });
+
     if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle log entry not found.' });
+      return res.status(404).json({
+        error: 'No matching entry found in your log. You can only update entries you logged.',
+      });
     }
 
     if (vehicle.status === 'exited') {
@@ -103,8 +114,7 @@ export async function markExit(req: AuthenticatedRequest, res: Response) {
     await vehicle.save();
 
     const vObj: any = vehicle.toJSON();
-    const wDoc = vehicle.added_by_watchman_id as any;
-    vObj.added_by_watchman_name = wDoc?.full_name || 'Gate Watchman';
+    vObj.added_by_watchman_name = req.watchman?.full_name || 'Gate Watchman';
 
     return res.json({
       vehicle: vObj,

@@ -6,9 +6,10 @@ import { Navbar } from './Navbar.tsx';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
+  loginPath?: string;
 }
 
-export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles, loginPath = '/login' }: ProtectedRouteProps) {
   const { role, isLoading } = useAuth();
 
   if (isLoading) {
@@ -22,7 +23,7 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // Not logged in
   if (!role) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   // Role mismatch check

@@ -21,6 +21,10 @@ const watchmanSchema = new Schema<IWatchman>(
     toJSON: {
       virtuals: true,
       transform: (_doc, ret: any) => {
+        // Never let the bcrypt hash leave the database layer. This transform also
+        // feeds req.watchman in parseSession(), so anything left in `ret` is
+        // reachable for the whole request lifecycle.
+        delete ret.password_hash;
         ret.id = ret._id.toString();
         ret.status = ret.is_active ? 'active' : 'inactive';
         ret.role = 'WATCHMAN';

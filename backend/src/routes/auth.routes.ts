@@ -10,6 +10,8 @@ import {
   rateLimitResidentSignin,
   rateLimitAdminLogin,
   rateLimitWatchmanLogin,
+  rateLimitSessionProbe,
+  rateLimitLogout,
 } from '../middleware/rateLimiters.ts';
 
 export const authRouter = Router();
@@ -17,5 +19,5 @@ export const authRouter = Router();
 authRouter.post('/resident-signin', rateLimitResidentSignin, residentSignin);
 authRouter.post('/admin-login', rateLimitAdminLogin, adminLogin);
 authRouter.post('/watchman-login', rateLimitWatchmanLogin, watchmanLogin);
-authRouter.post('/logout', logout);
-authRouter.get('/me', getMe);
+authRouter.post('/logout', rateLimitLogout, logout);
+authRouter.get('/me', rateLimitSessionProbe, getMe);

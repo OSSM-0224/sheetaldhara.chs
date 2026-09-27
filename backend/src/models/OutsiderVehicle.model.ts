@@ -37,9 +37,11 @@ const outsiderVehicleSchema = new Schema<IOutsiderVehicle>(
       virtuals: true,
       transform: (_doc, ret: any) => {
         ret.id = ret._id.toString();
-        ret.added_by_watchman_id = ret.added_by_watchman_id
-          ? ret.added_by_watchman_id.toString()
-          : ret.added_by_watchman_id;
+        // See Vehicle.model.ts: populated refs arrive here as document objects, so
+        // toString() would produce "[object Object]". Read _id off the populated doc.
+        ret.added_by_watchman_id = ret.added_by_watchman_id?._id
+          ? ret.added_by_watchman_id._id.toString()
+          : ret.added_by_watchman_id?.toString();
         ret.vehicle_type = ret.vehicle_type ? ret.vehicle_type.toUpperCase() : ret.vehicle_type;
         ret.last_four_digits = ret.plate ? ret.plate.slice(-4) : '';
         ret.added_at = ret.createdAt ? ret.createdAt.toISOString() : undefined;

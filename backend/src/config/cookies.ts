@@ -15,4 +15,7 @@ export const SESSION_COOKIE_OPTIONS = {
   sameSite: isCrossSite ? ('none' as const) : ('lax' as const),
   maxAge: THIRTY_DAYS_MS,
   path: '/',
+  // Signed with COOKIE_SECRET so a tampered cookie is rejected by cookie-parser
+  // instead of being handed to jwt.verify as if it were legitimate.
+  signed: true,
 };

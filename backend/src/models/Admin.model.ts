@@ -21,6 +21,10 @@ const adminSchema = new Schema<IAdmin>(
     toJSON: {
       virtuals: true,
       transform: (_doc, ret: any) => {
+        // Never let the bcrypt hash leave the database layer. This transform also
+        // feeds req.user in parseSession(), so anything left in `ret` is reachable
+        // for the whole request lifecycle.
+        delete ret.password_hash;
         ret.id = ret._id.toString();
         ret.role = 'ADMIN';
         ret.created_at = ret.createdAt ? ret.createdAt.toISOString() : undefined;

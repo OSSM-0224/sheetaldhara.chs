@@ -6,6 +6,10 @@ export interface ISearchLog {
   searched_by_id: Types.ObjectId | string;
   matched_plate?: string;
   match_source?: 'registered' | 'outsider' | 'none';
+  // A last-4 search can return many vehicles. Recording only the first match made
+  // the audit trail understate what the searcher actually saw.
+  match_count?: number;
+  matched_plates?: string[];
   createdAt?: Date;
 }
 
@@ -16,6 +20,8 @@ const searchLogSchema = new Schema<ISearchLog>(
     searched_by_id: { type: Schema.Types.Mixed, required: true },
     matched_plate: { type: String },
     match_source: { type: String, enum: ['registered', 'outsider', 'none'] },
+    match_count: { type: Number, default: 0 },
+    matched_plates: { type: [String], default: [] },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

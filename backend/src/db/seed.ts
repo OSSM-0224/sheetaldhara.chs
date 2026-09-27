@@ -1,13 +1,17 @@
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { Resident, Vehicle, OutsiderVehicle, Watchman, Admin, SearchLog } from '../models/index.ts';
+import { ENV } from '../config/env.ts';
 import { normalizePlate } from '../utils/plateNormalizer.ts';
 
 /**
  * Seed the MongoDB Atlas database with the initial demonstration dataset.
  * @param force If true, clears existing collections before seeding.
+ * @param preserveSearchLog When true, keeps the SearchLog audit trail intact.
+ *   Resetting demo *society data* must not erase the record of who searched for
+ *   which vehicle — that log is the compliance artifact, not demo content.
  */
-export async function seedDatabase(force = false): Promise<void> {
+export async function seedDatabase(force = false, preserveSearchLog = false): Promise<void> {
   if (mongoose.connection.readyState !== 1) {
     console.warn('[Seed] MongoDB is not connected; skipping seeding routine.');
     return;
@@ -32,27 +36,31 @@ export async function seedDatabase(force = false): Promise<void> {
     OutsiderVehicle.deleteMany({}),
     Watchman.deleteMany({}),
     Admin.deleteMany({}),
-    SearchLog.deleteMany({}),
+    ...(preserveSearchLog ? [] : [SearchLog.deleteMany({})]),
   ]);
 
+  if (preserveSearchLog) {
+    console.log('[Seed] SearchLog audit trail preserved across reset.');
+  }
+
   const adminSalt = bcrypt.genSaltSync(10);
-  const adminHash = bcrypt.hashSync('admin123', adminSalt);
+  const adminHash = bcrypt.hashSync(ENV.ADMIN_PASSWORD, adminSalt);
 
   const watchmanSalt = bcrypt.genSaltSync(10);
-  const watchmanHash = bcrypt.hashSync('watchman123', watchmanSalt);
+  const watchmanHash = bcrypt.hashSync(ENV.WATCHMAN_PASSWORD, watchmanSalt);
 
   // 1. Create Admin
   await Admin.create({
-    full_name: 'Ramesh Sharma',
-    phone: '9820011223',
+    full_name: ENV.ADMIN_NAME,
+    phone: ENV.ADMIN_PHONE,
     password_hash: adminHash,
     room_number: 'A-101',
   });
 
   // 2. Create Watchman
   const watchman = await Watchman.create({
-    full_name: 'Sanjay Yadav',
-    phone: '9820099001',
+    full_name: ENV.WATCHMAN_NAME,
+    phone: ENV.WATCHMAN_PHONE,
     password_hash: watchmanHash,
     is_active: true,
   });

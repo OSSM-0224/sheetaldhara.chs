@@ -35,7 +35,13 @@ const vehicleSchema = new Schema<IVehicle>(
       virtuals: true,
       transform: (_doc, ret: any) => {
         ret.id = ret._id.toString();
-        ret.resident_id = ret.resident_id ? ret.resident_id.toString() : ret.resident_id;
+        // `resident_id` is populated before serialization in list endpoints, so at
+        // this point it is a document object, not an ObjectId. Calling toString()
+        // on it yields the literal string "[object Object]", which then fails
+        // Resident.findById() downstream. Always read the _id off the populated doc.
+        ret.resident_id = ret.resident_id?._id
+          ? ret.resident_id._id.toString()
+          : ret.resident_id?.toString();
         ret.vehicle_type = ret.vehicle_type ? ret.vehicle_type.toUpperCase() : ret.vehicle_type;
         ret.normalized_plate = ret.plate;
         ret.last_four_digits = ret.plate ? ret.plate.slice(-4) : '';

@@ -6,11 +6,13 @@ import {
   Vehicle,
   OutsiderVehicle,
   Watchman,
+  Admin,
   SearchLog,
 } from '../models/index.ts';
 import { seedDatabase } from '../db/seed.ts';
 import { AuthenticatedRequest } from '../middleware/auth.ts';
 import { normalizePlate, extractLastFourDigits } from '../utils/plateNormalizer.ts';
+import { isValidPhoneNumber, isValidRoomNumber } from '../utils/validators.ts';
 
 // ============================================================================
 // Residents CRUD
@@ -65,6 +67,16 @@ export async function createResident(req: AuthenticatedRequest, res: Response) {
     const cleanRoom = String(room_number).trim().toUpperCase();
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
 
+    // A resident signs in passwordlessly on (room_number, phone), so a malformed
+    // phone is not cosmetic — it locks that resident out of their own account.
+    if (!isValidRoomNumber(cleanRoom)) {
+      return res.status(400).json({ error: 'Flat / room number must be 2 to 10 characters.' });
+    }
+
+    if (!isValidPhoneNumber(cleanPhone)) {
+      return res.status(400).json({ error: 'Phone must be a valid 10-digit number.' });
+    }
+
     const existing = await Resident.findOne({
       $or: [{ room_number: cleanRoom }, { phone: cleanPhone }],
     });
@@ -111,6 +123,9 @@ export async function updateResident(req: AuthenticatedRequest, res: Response) {
 
     if (room_number) {
       const cleanRoom = String(room_number).trim().toUpperCase();
+      if (!isValidRoomNumber(cleanRoom)) {
+        return res.status(400).json({ error: 'Flat / room number must be 2 to 10 characters.' });
+      }
       if (cleanRoom !== resident.room_number) {
         const conflict = await Resident.findOne({ room_number: cleanRoom, _id: { $ne: residentId } });
         if (conflict) {
@@ -122,6 +137,9 @@ export async function updateResident(req: AuthenticatedRequest, res: Response) {
 
     if (phone) {
       const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+      if (!isValidPhoneNumber(cleanPhone)) {
+        return res.status(400).json({ error: 'Phone must be a valid 10-digit number.' });
+      }
       if (cleanPhone !== resident.phone) {
         const conflict = await Resident.findOne({ phone: cleanPhone, _id: { $ne: residentId } });
         if (conflict) {
@@ -384,8 +402,15 @@ export async function createWatchman(req: AuthenticatedRequest, res: Response) {
     }
 
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-    if (cleanPhone.length !== 10) {
+    if (!isValidPhoneNumber(cleanPhone)) {
       return res.status(400).json({ error: 'Phone must be a valid 10-digit number.' });
+    }
+
+    // Admin-created watchmen bypass the production guards in config/env.ts, so
+    // enforce a minimum length here. A weak gate credential is the one credential
+    // an attacker can brute-force remotely.
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Watchman password must be at least 8 characters.' });
     }
 
     const existing = await Watchman.findOne({ phone: cleanPhone });
@@ -429,6 +454,9 @@ export async function updateWatchman(req: AuthenticatedRequest, res: Response) {
 
     if (phone) {
       const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+      if (!isValidPhoneNumber(cleanPhone)) {
+        return res.status(400).json({ error: 'Phone must be a valid 10-digit number.' });
+      }
       if (cleanPhone !== watchman.phone) {
         const conflict = await Watchman.findOne({ phone: cleanPhone, _id: { $ne: watchmanId } });
         if (conflict) {
@@ -440,6 +468,9 @@ export async function updateWatchman(req: AuthenticatedRequest, res: Response) {
 
     if (full_name) watchman.full_name = String(full_name).trim();
     if (password) {
+      if (String(password).length < 8) {
+        return res.status(400).json({ error: 'Watchman password must be at least 8 characters.' });
+      }
       const salt = bcrypt.genSaltSync(10);
       watchman.password_hash = bcrypt.hashSync(String(password), salt);
     }
@@ -552,14 +583,50 @@ export async function getSearchLogs(req: AuthenticatedRequest, res: Response) {
 
     const docs = await SearchLog.find().sort({ createdAt: -1 }).limit(200);
 
-    const logs = docs.map((l) => ({
-      id: l._id.toString(),
-      search_query: l.query_term,
-      searched_by_resident_id: String(l.searched_by_id),
-      matched_vehicle_id: null,
-      matched_plate: l.matched_plate || null,
-      created_at: l.createdAt ? l.createdAt.toISOString() : new Date().toISOString(),
-    }));
+    // Resolve the actor's display identity per role. The log stores only
+    // searched_by_type + searched_by_id, so a resident's name/room has to be
+    // looked up here or the audit table can only ever show the raw id.
+    const residentIds = docs
+      .filter((l) => l.searched_by_type === 'resident')
+      .map((l) => l.searched_by_id)
+      .filter((id) => typeof id === 'object' && id !== null);
+
+    const adminIds = docs
+      .filter((l) => l.searched_by_type === 'admin')
+      .map((l) => l.searched_by_id)
+      .filter((id) => typeof id === 'object' && id !== null);
+
+    const [residents, admins] = await Promise.all([
+      residentIds.length
+        ? Resident.find({ _id: { $in: residentIds } }).select('full_name room_number')
+        : Promise.resolve([] as Array<{ _id: any; full_name: string; room_number: string }>),
+      adminIds.length
+        ? Admin.find({ _id: { $in: adminIds } }).select('full_name room_number')
+        : Promise.resolve([] as Array<{ _id: any; full_name: string; room_number: string }>),
+    ]);
+
+    const residentById = new Map(residents.map((r) => [r._id.toString(), r]));
+    const adminById = new Map(admins.map((a) => [a._id.toString(), a]));
+
+    const logs = docs.map((l) => {
+      const actorId = l.searched_by_id ? String(l.searched_by_id) : null;
+      const resident = l.searched_by_type === 'resident' && actorId ? residentById.get(actorId) : undefined;
+      const admin = l.searched_by_type === 'admin' && actorId ? adminById.get(actorId) : undefined;
+
+      return {
+        id: l._id.toString(),
+        search_query: l.query_term,
+        searched_by_type: l.searched_by_type,
+        searched_by_id: actorId,
+        searcher_name: resident?.full_name || admin?.full_name || null,
+        searcher_room: resident?.room_number || admin?.room_number || null,
+        matched_plate: l.matched_plate || null,
+        match_source: l.match_source || 'none',
+        match_count: l.match_count ?? 0,
+        matched_plates: l.matched_plates || [],
+        created_at: l.createdAt ? l.createdAt.toISOString() : new Date().toISOString(),
+      };
+    });
 
     return res.json({ logs });
   } catch (err: any) {
@@ -570,15 +637,41 @@ export async function getSearchLogs(req: AuthenticatedRequest, res: Response) {
 
 export async function resetSeed(req: AuthenticatedRequest, res: Response) {
   try {
+    // This endpoint purges every society record. Require an explicit opt-in so a
+    // mis-tap, a stale tab, or a cross-site request cannot trigger it silently.
+    if (req.body?.confirm !== 'RESET') {
+      return res.status(400).json({
+        error:
+          'Reset is destructive and requires confirmation. Send { "confirm": "RESET" } to proceed.',
+      });
+    }
+
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'Database not connected. Please configure MONGODB_URI.' });
     }
 
-    await seedDatabase(true);
+    // Warn about collateral damage: seed() recreates Watchman and Admin from env,
+    // so any watchman accounts created through the UI are destroyed by a reset.
+    const [watchmanCount, residentCount, vehicleCount] = await Promise.all([
+      Watchman.countDocuments(),
+      Resident.countDocuments(),
+      Vehicle.countDocuments(),
+    ]);
+
+    await seedDatabase(true, true); // preserve the SearchLog audit trail
 
     return res.json({
       success: true,
-      message: 'Society database reset to initial demo seed data in MongoDB Atlas.',
+      message: 'Society demo data reset. The search audit trail was preserved.',
+      deleted: {
+        residents: residentCount,
+        vehicles: vehicleCount,
+        watchmen: watchmanCount,
+      },
+      warning:
+        watchmanCount > 1
+          ? `${watchmanCount - 1} watchman account(s) created through the admin UI were removed and replaced by the seeded demo guard.`
+          : undefined,
     });
   } catch (err: any) {
     console.error('Admin reset seed error:', err);

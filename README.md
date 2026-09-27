@@ -103,17 +103,22 @@ In residential cooperative societies, cars and two-wheelers frequently block dri
 
 ## 🔑 Demo Accounts & Sample Search Data
 
-For testing and evaluation, the application includes pre-seeded demo records:
+For testing and evaluation, the application includes pre-seeded demo records.
+The credentials below are the **development defaults** taken from `.env`; the
+server refuses to start in production if they are left unchanged.
 
 ### Admin Account
 | Role | Phone | Password | Flat | Name |
 | :--- | :--- | :--- | :--- | :--- |
 | **Admin** | `9820011223` | `admin123` | `A-101` | Ramesh Sharma |
 
+Administrators sign in on a **separate page** at `/admin/login`, not on the
+resident/watchman portal login.
+
 ### Watchman Account (Gate Security)
 | Role | Phone | Password | Assigned Gate | Name |
 | :--- | :--- | :--- | :--- | :--- |
-| **Watchman** | `9820055667` | `watchman123` | Main Gate | Sanjay Yadav |
+| **Watchman** | `9820099001` | `watchman123` | Main Gate | Sanjay Yadav |
 
 ### Resident Accounts (Passwordless: Flat + Phone)
 | Flat / Room | Registered Phone | Resident Name | Registered Vehicles |
@@ -253,10 +258,17 @@ cp .env.example .env
 Key configuration items:
 ```env
 JWT_SECRET="your-secure-jwt-secret"
+COOKIE_SECRET="your-secure-cookie-secret"
 ADMIN_PHONE="9820011223"
 ADMIN_PASSWORD="your-admin-password"
+WATCHMAN_PHONE="9820099001"
+WATCHMAN_PASSWORD="your-watchman-password"
 MONGODB_URI="mongodb://127.0.0.1:27017/sheetaldhara_chs"
 ```
+
+`ADMIN_PASSWORD`, `WATCHMAN_PASSWORD`, `JWT_SECRET` and `COOKIE_SECRET` are
+**required in production**: the server throws on startup if any of them is
+missing, shorter than 8 characters, or still set to a built-in demo value.
 
 ### 3. Run in Development Mode
 ```bash

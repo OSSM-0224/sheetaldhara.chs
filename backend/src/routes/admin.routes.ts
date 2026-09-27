@@ -18,11 +18,13 @@ import {
   resetSeed,
 } from '../controllers/admin.controller.ts';
 import { requireAuth, requireAdmin } from '../middleware/auth.ts';
+import { rateLimitAdminApi, rateLimitDestructive } from '../middleware/rateLimiters.ts';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth);
 adminRouter.use(requireAdmin);
+adminRouter.use(rateLimitAdminApi);
 
 // Residents CRUD
 adminRouter.get('/residents', getResidents);
@@ -48,4 +50,4 @@ adminRouter.patch('/outsider-vehicles/:id/exit', markOutsiderVehicleExit);
 
 // Search Logs & Reset Seed
 adminRouter.get('/search-logs', getSearchLogs);
-adminRouter.post('/reset-seed', resetSeed);
+adminRouter.post('/reset-seed', rateLimitDestructive, resetSeed);

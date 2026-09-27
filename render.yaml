@@ -1,5 +1,6 @@
 # Render blueprint for the API only. The frontend deploys separately to Vercel.
-# Set MONGODB_URI, ADMIN_PASSWORD and CORS_ORIGINS in the Render dashboard.
+# The server refuses to boot in production unless ADMIN_PASSWORD / WATCHMAN_PASSWORD
+# are set to non-demo values, and JWT_SECRET / COOKIE_SECRET are not the built-in ones.
 services:
   - type: web
     name: sheetaldhara-api
@@ -15,7 +16,13 @@ services:
         sync: false
       - key: MONGODB_URI
         sync: false
+      - key: ADMIN_PHONE
+        sync: false
       - key: ADMIN_PASSWORD
+        sync: false
+      - key: WATCHMAN_PHONE
+        sync: false
+      - key: WATCHMAN_PASSWORD
         sync: false
       - key: JWT_SECRET
         generateValue: true

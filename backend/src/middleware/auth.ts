@@ -43,7 +43,9 @@ export function generateToken(payload: {
 
 export async function parseSession(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    let token = req.cookies?.society_token;
+    // Signed cookies are exposed via req.signedCookies; the plain req.cookies
+    // fallback keeps sessions issued before signing was introduced working.
+    let token = req.signedCookies?.society_token || req.cookies?.society_token;
 
     if (!token && req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];

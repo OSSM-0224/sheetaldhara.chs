@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useLanguage } from '../lib/i18n.tsx';
 import { apiFetch } from '../lib/api.ts';
@@ -11,14 +11,11 @@ export function LoginPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'resident' | 'admin' | 'watchman'>('resident');
+  const [activeTab, setActiveTab] = useState<'resident' | 'watchman'>('resident');
 
   // Form states
   const [residentRoom, setResidentRoom] = useState('');
   const [residentPhone, setResidentPhone] = useState('');
-
-  const [adminPhone, setAdminPhone] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
 
   const [watchmanPhone, setWatchmanPhone] = useState('');
   const [watchmanPassword, setWatchmanPassword] = useState('');
@@ -28,7 +25,6 @@ export function LoginPage() {
 
   // If already logged in, redirect immediately
   if (role === 'RESIDENT') return <Navigate to="/dashboard" replace />;
-  if (role === 'ADMIN') return <Navigate to="/admin/residents" replace />;
   if (role === 'WATCHMAN') return <Navigate to="/watchman" replace />;
 
   const handleResidentSubmit = async (e: React.FormEvent) => {
@@ -54,34 +50,6 @@ export function LoginPage() {
       navigate('/dashboard');
     } catch (err: any) {
       setErrorMessage(err.message || 'Unable to sign in. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAdminSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setIsLoading(true);
-
-    try {
-      const res = await apiFetch('/api/auth/admin-login', {
-        method: 'POST',
-        body: JSON.stringify({
-          phone: adminPhone.trim(),
-          password: adminPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed.');
-      }
-
-      login(data);
-      navigate('/admin/residents');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid administrator credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +91,7 @@ export function LoginPage() {
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#2C5E3B] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
             <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <span className="font-extrabold text-xs xs:text-sm tracking-tight text-[#111111] truncate">
+          <span className="font-extrabold text-xs sm:text-sm tracking-tight text-[#111111] truncate">
             {t.societyName}
           </span>
         </div>
@@ -141,7 +109,7 @@ export function LoginPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="grid grid-cols-3 border-b border-[#DDD5C5] bg-[#FAF7F0] p-1.5 gap-1 text-xs font-semibold">
+        <div className="grid grid-cols-2 border-b border-[#DDD5C5] bg-[#FAF7F0] p-1.5 gap-1 text-xs font-semibold">
           <button
             type="button"
             onClick={() => {
@@ -172,22 +140,6 @@ export function LoginPage() {
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{t.watchmanLoginTab}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('admin');
-              setErrorMessage('');
-            }}
-            className={`py-2 px-1 rounded-lg flex items-center justify-center gap-1.5 transition-all select-none ${
-              activeTab === 'admin'
-                ? 'bg-white text-[#2C5E3B] shadow-xs font-bold'
-                : 'text-[#666666] hover:text-[#111111]'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{t.adminLoginTab}</span>
           </button>
         </div>
 
@@ -331,85 +283,18 @@ export function LoginPage() {
               >
                 {isLoading ? t.loggingIn : t.signInBtn}
               </button>
-
-              {/* Demo Pre-fill for Watchman */}
-              <div className="pt-4 border-t border-[#EAE4D7] mt-4">
-                <p className="text-[11px] font-semibold text-[#888888] mb-2">QUICK DEMO WATCHMAN:</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWatchmanPhone('9820099001');
-                    setWatchmanPassword('watchman123');
-                  }}
-                  className="text-xs bg-[#FAF7F0] hover:bg-[#EAE4D7] px-2.5 py-1 rounded border border-[#DDD5C5] text-[#333333]"
-                >
-                  Sanjay Yadav (9820099001 / watchman123)
-                </button>
-              </div>
             </form>
           )}
 
-          {/* Admin Form */}
-          {activeTab === 'admin' && (
-            <form onSubmit={handleAdminSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#555555] mb-1.5">
-                  {t.phoneInputLabel}
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-[#888888] absolute left-3.5 top-3.5" />
-                  <input
-                    type="tel"
-                    required
-                    value={adminPhone}
-                    onChange={(e) => setAdminPhone(e.target.value)}
-                    placeholder="9820011223"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#DDD5C5] text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#555555] mb-1.5">
-                  {t.passwordInputLabel}
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#888888] absolute left-3.5 top-3.5" />
-                  <input
-                    type="password"
-                    required
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#DDD5C5] text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full mt-2 bg-[#2C5E3B] hover:bg-[#234A2F] text-white font-bold py-3 px-4 rounded-lg shadow-sm transition-colors text-sm disabled:opacity-50"
-              >
-                {isLoading ? t.loggingIn : t.signInBtn}
-              </button>
-
-              {/* Demo Pre-fill for Admin */}
-              <div className="pt-4 border-t border-[#EAE4D7] mt-4">
-                <p className="text-[11px] font-semibold text-[#888888] mb-2">QUICK DEMO ADMIN:</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAdminPhone('9820011223');
-                    setAdminPassword('admin123');
-                  }}
-                  className="text-xs bg-[#FAF7F0] hover:bg-[#EAE4D7] px-2.5 py-1 rounded border border-[#DDD5C5] text-[#333333]"
-                >
-                  Ramesh Sharma (9820011223 / admin123)
-                </button>
-              </div>
-            </form>
-          )}
+          <div className="mt-5 pt-4 border-t border-[#EAE4D7] text-center">
+            <Link
+              to="/admin/login"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#666666] hover:text-[#2C5E3B] hover:underline"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              {t.adminLoginTab}
+            </Link>
+          </div>
         </div>
       </div>
 
