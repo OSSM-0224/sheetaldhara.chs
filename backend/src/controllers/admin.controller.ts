@@ -14,6 +14,17 @@ import { AuthenticatedRequest } from '../middleware/auth.ts';
 import { normalizePlate, extractLastFourDigits } from '../utils/plateNormalizer.ts';
 import { isValidPhoneNumber, isValidRoomNumber } from '../utils/validators.ts';
 
+// Minimal projection used when resolving a search-log actor's display name.
+interface ActorIdentity {
+  _id: mongoose.Types.ObjectId;
+  full_name: string;
+  room_number?: string;
+}
+
+// Lets the empty-branch of a conditional query keep the same element type as the
+// real Mongoose result, instead of collapsing the union to `never[]`.
+type Ids<T> = Array<T & { _id: mongoose.Types.ObjectId }>;
+
 // ============================================================================
 // Residents CRUD
 // ============================================================================
@@ -599,14 +610,16 @@ export async function getSearchLogs(req: AuthenticatedRequest, res: Response) {
     const [residents, admins] = await Promise.all([
       residentIds.length
         ? Resident.find({ _id: { $in: residentIds } }).select('full_name room_number')
-        : Promise.resolve([] as Array<{ _id: any; full_name: string; room_number: string }>),
+        : Promise.resolve([] as Ids<ActorIdentity>),
       adminIds.length
         ? Admin.find({ _id: { $in: adminIds } }).select('full_name room_number')
-        : Promise.resolve([] as Array<{ _id: any; full_name: string; room_number: string }>),
+        : Promise.resolve([] as Ids<ActorIdentity>),
     ]);
 
-    const residentById = new Map(residents.map((r) => [r._id.toString(), r]));
-    const adminById = new Map(admins.map((a) => [a._id.toString(), a]));
+    const residentById = new Map<string, ActorIdentity>(
+      residents.map((r) => [r._id.toString(), r])
+    );
+    const adminById = new Map<string, ActorIdentity>(admins.map((a) => [a._id.toString(), a]));
 
     const logs = docs.map((l) => {
       const actorId = l.searched_by_id ? String(l.searched_by_id) : null;

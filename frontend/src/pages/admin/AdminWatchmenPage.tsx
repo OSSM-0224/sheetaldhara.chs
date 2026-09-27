@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../lib/api.ts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiRequest } from '../../lib/api.ts';
 import { Watchman } from '../../types.ts';
-import { Shield, Plus, Edit2, Trash2, Search, Phone, User, AlertCircle, X, ShieldCheck } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Search, AlertCircle, X, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button.tsx';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.tsx';
+import { Card, CardContent } from '../../components/ui/card.tsx';
 import { Badge } from '../../components/ui/badge.tsx';
 
 export function AdminWatchmenPage() {
   const [watchmen, setWatchmen] = useState<Watchman[]>([]);
   const [filter, setFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,22 +22,23 @@ export function AdminWatchmenPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadWatchmen = async () => {
-    try {
-      const res = await apiFetch('/api/admin/watchmen');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load watchmen.');
-      setWatchmen(data.watchmen || []);
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+  const loadWatchmen = useCallback(async () => {
+    const res = await apiRequest<{ watchmen: Watchman[] }>('/api/admin/watchmen');
+    if (res.ok) {
+      setWatchmen(res.data.watchmen || []);
+      setLoadError(null);
+    } else {
+      // Previously this was console.error-only, so a failed request rendered as
+      // an empty "no watchmen registered" table.
+      setWatchmen([]);
+      setLoadError(res.error);
     }
-  };
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     loadWatchmen();
-  }, []);
+  }, [loadWatchmen]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -63,30 +65,27 @@ export function AdminWatchmenPage() {
     setModalError(null);
     setIsSubmitting(true);
 
-    try {
-      const endpoint = editingId ? `/api/admin/watchmen/${editingId}` : '/api/admin/watchmen';
-      const method = editingId ? 'PATCH' : 'POST';
+    const endpoint = editingId ? `/api/admin/watchmen/${editingId}` : '/api/admin/watchmen';
+    const method = editingId ? 'PATCH' : 'POST';
 
-      const res = await apiFetch(endpoint, {
-        method,
-        body: JSON.stringify({
-          full_name: formName.trim(),
-          phone: formPhone.replace(/[^0-9]/g, ''),
-          password: formPassword.trim() || undefined,
-          status: editingId ? formStatus : undefined,
-        }),
-      });
+    const res = await apiRequest<{ message?: string }>(endpoint, {
+      method,
+      body: JSON.stringify({
+        full_name: formName.trim(),
+        phone: formPhone.replace(/[^0-9]/g, ''),
+        password: formPassword.trim() || undefined,
+        status: editingId ? formStatus : undefined,
+      }),
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save watchman.');
-
+    if (res.ok) {
       setIsModalOpen(false);
       await loadWatchmen();
-    } catch (err: any) {
-      setModalError(err.message || 'Operation failed.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setModalError(res.error);
     }
+
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -94,13 +93,14 @@ export function AdminWatchmenPage() {
       return;
     }
 
-    try {
-      const res = await apiFetch(`/api/admin/watchmen/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete account.');
+    const res = await apiRequest<{ message?: string }>(`/api/admin/watchmen/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
       await loadWatchmen();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete account.');
+    } else {
+      window.alert(res.error);
     }
   };
 
@@ -135,6 +135,7 @@ export function AdminWatchmenPage() {
             <Search className="w-4 h-4 text-[#888888] absolute left-3 top-3" />
             <input
               type="text"
+              aria-label="Search watchmen"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search watchman name or phone..."
@@ -150,6 +151,18 @@ export function AdminWatchmenPage() {
         <CardContent className="p-0 overflow-x-auto">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-[#666666]">Loading accounts...</div>
+          ) : loadError ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="inline-flex items-center gap-2 text-sm text-[#B93826]">
+                <AlertCircle className="w-4 h-4" />
+                <span>{loadError}</span>
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={loadWatchmen}>
+                  Retry
+                </Button>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-sm text-[#888888]">
               No watchman accounts registered yet.
@@ -192,16 +205,20 @@ export function AdminWatchmenPage() {
                       </td>
                       <td className="py-3.5 px-4 sm:px-6 text-right space-x-2">
                         <button
+                          type="button"
                           onClick={() => handleOpenEdit(w)}
                           className="p-1.5 rounded text-[#555555] hover:text-[#111111] hover:bg-[#EAE4D7] transition-colors"
                           title="Edit Watchman"
+                          aria-label={`Edit watchman ${w.full_name}`}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(w.id, w.full_name)}
                           className="p-1.5 rounded text-[#B93826] hover:bg-[#FBEBEA] transition-colors"
                           title="Delete Account"
+                          aria-label={`Delete account ${w.full_name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -224,8 +241,10 @@ export function AdminWatchmenPage() {
                 {editingId ? 'Edit Watchman Account' : 'Create Watchman Account'}
               </h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="text-[#666666] hover:text-[#111111]"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -240,10 +259,11 @@ export function AdminWatchmenPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="watchman-name" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Guard Full Name
                 </label>
                 <input
+                  id="watchman-name"
                   type="text"
                   required
                   value={formName}
@@ -254,10 +274,11 @@ export function AdminWatchmenPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="watchman-phone" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Login Mobile Number (10 Digits)
                 </label>
                 <input
+                  id="watchman-phone"
                   type="tel"
                   required
                   value={formPhone}
@@ -268,27 +289,30 @@ export function AdminWatchmenPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="watchman-password" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   {editingId ? 'New Password (leave blank to keep current)' : 'Password'}
                 </label>
                 <input
+                  id="watchman-password"
                   type="password"
                   required={!editingId}
+                  minLength={8}
                   value={formPassword}
                   onChange={(e) => setFormPassword(e.target.value)}
-                  placeholder={editingId ? '••••••••' : 'Minimum 6 characters'}
+                  placeholder={editingId ? '••••••••' : 'Minimum 8 characters'}
                   className="w-full px-3 py-2 rounded-lg border border-[#DDD5C5] text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
                 />
               </div>
 
               {editingId && (
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="watchman-status" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Account Status
                   </label>
                   <select
+                    id="watchman-status"
                     value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as any)}
+                    onChange={(e) => setFormStatus(e.target.value as 'active' | 'inactive')}
                     className="w-full px-3 py-2 rounded-lg border border-[#DDD5C5] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
                   >
                     <option value="active">Active (Permitted to Log In)</option>

@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../lib/api.ts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiRequest } from '../../lib/api.ts';
 import { Vehicle, Resident, VehicleType } from '../../types.ts';
 import { formatPlate } from '../../lib/utils.ts';
-import { Car, Bike, HelpCircle, Plus, Edit2, Trash2, Search, AlertCircle, X, Shield } from 'lucide-react';
+import { Car, Bike, HelpCircle, Plus, Edit2, Trash2, Search, AlertCircle, X } from 'lucide-react';
 import { Button } from '../../components/ui/button.tsx';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.tsx';
+import { Card, CardContent } from '../../components/ui/card.tsx';
 
 export function AdminVehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [residents, setResidents] = useState<Resident[]>([]);
   const [filter, setFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,26 +26,35 @@ export function AdminVehiclesPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadData = async () => {
-    try {
-      const [vRes, rRes] = await Promise.all([
-        apiFetch('/api/admin/vehicles'),
-        apiFetch('/api/admin/residents'),
-      ]);
-      const vData = await vRes.json();
-      const rData = await rRes.json();
-      setVehicles(vData.vehicles || []);
-      setResidents(rData.residents || []);
-    } catch (err) {
-      console.error('Error loading data:', err);
-    } finally {
-      setIsLoading(false);
+  const loadData = useCallback(async () => {
+    setLoadError(null);
+    const [vRes, rRes] = await Promise.all([
+      apiRequest<{ vehicles: Vehicle[] }>('/api/admin/vehicles'),
+      apiRequest<{ residents: Resident[] }>('/api/admin/residents'),
+    ]);
+
+    // Both loaders used to ignore res.ok and overwrite state with [] on failure,
+    // so a 503 "Database not connected" rendered as an empty registry.
+    if (vRes.ok) {
+      setVehicles(vRes.data.vehicles || []);
+    } else {
+      setVehicles([]);
+      setLoadError(vRes.error);
     }
-  };
+
+    if (rRes.ok) {
+      setResidents(rRes.data.residents || []);
+    } else {
+      setResidents([]);
+      setLoadError((prev) => prev ?? rRes.error);
+    }
+
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -77,33 +87,30 @@ export function AdminVehiclesPage() {
     setModalError(null);
     setIsSubmitting(true);
 
-    try {
-      const endpoint = editingId ? `/api/admin/vehicles/${editingId}` : '/api/admin/vehicles';
-      const method = editingId ? 'PATCH' : 'POST';
+    const endpoint = editingId ? `/api/admin/vehicles/${editingId}` : '/api/admin/vehicles';
+    const method = editingId ? 'PATCH' : 'POST';
 
-      const res = await apiFetch(endpoint, {
-        method,
-        body: JSON.stringify({
-          resident_id: formResidentId,
-          vehicle_type: formType,
-          brand: formBrand.trim(),
-          model: formModel.trim(),
-          color: formColor.trim(),
-          plate: formPlate.trim(),
-          parking_number: formType === 'BIKE' ? '' : formSlot.trim(),
-        }),
-      });
+    const res = await apiRequest<{ message?: string }>(endpoint, {
+      method,
+      body: JSON.stringify({
+        resident_id: formResidentId,
+        vehicle_type: formType,
+        brand: formBrand.trim(),
+        model: formModel.trim(),
+        color: formColor.trim(),
+        plate: formPlate.trim(),
+        parking_number: formType === 'BIKE' ? '' : formSlot.trim(),
+      }),
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save vehicle.');
-
+    if (res.ok) {
       setIsModalOpen(false);
       await loadData();
-    } catch (err: any) {
-      setModalError(err.message || 'Operation failed.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setModalError(res.error);
     }
+
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: string, plate: string) => {
@@ -111,13 +118,14 @@ export function AdminVehiclesPage() {
       return;
     }
 
-    try {
-      const res = await apiFetch(`/api/admin/vehicles/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete vehicle.');
+    const res = await apiRequest<{ message?: string }>(`/api/admin/vehicles/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
       await loadData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete vehicle.');
+    } else {
+      window.alert(res.error);
     }
   };
 
@@ -158,6 +166,7 @@ export function AdminVehiclesPage() {
             <Search className="w-4 h-4 text-[#888888] absolute left-3 top-3" />
             <input
               type="text"
+              aria-label="Search vehicles"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search plate, flat, owner, model..."
@@ -173,6 +182,18 @@ export function AdminVehiclesPage() {
         <CardContent className="p-0 overflow-x-auto">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-[#666666]">Loading vehicle registry...</div>
+          ) : loadError ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="inline-flex items-center gap-2 text-sm text-[#B93826]">
+                <AlertCircle className="w-4 h-4" />
+                <span>{loadError}</span>
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={loadData}>
+                  Retry
+                </Button>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-sm text-[#888888]">
               No registered vehicles found.
@@ -238,16 +259,20 @@ export function AdminVehiclesPage() {
                       </td>
                       <td className="py-3.5 px-4 sm:px-6 text-right space-x-2">
                         <button
+                          type="button"
                           onClick={() => handleOpenEdit(v)}
                           className="p-1.5 rounded text-[#555555] hover:text-[#111111] hover:bg-[#EAE4D7] transition-colors"
                           title="Edit Vehicle"
+                          aria-label={`Edit vehicle ${formatPlate(v.normalized_plate)}`}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(v.id, v.normalized_plate)}
                           className="p-1.5 rounded text-[#B93826] hover:bg-[#FBEBEA] transition-colors"
                           title="Delete Vehicle"
+                          aria-label={`Delete vehicle ${formatPlate(v.normalized_plate)}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -270,8 +295,10 @@ export function AdminVehiclesPage() {
                 {editingId ? 'Edit Vehicle Details' : 'Register New Vehicle'}
               </h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="text-[#666666] hover:text-[#111111]"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -286,10 +313,11 @@ export function AdminVehiclesPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="vehicle-resident" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Assigned Resident
                 </label>
                 <select
+                  id="vehicle-resident"
                   required
                   value={formResidentId}
                   onChange={(e) => setFormResidentId(e.target.value)}
@@ -305,10 +333,11 @@ export function AdminVehiclesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="vehicle-type" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Vehicle Type
                   </label>
                   <select
+                    id="vehicle-type"
                     value={formType}
                     onChange={(e) => setFormType(e.target.value as VehicleType)}
                     className="w-full px-3 py-2 rounded-lg border border-[#DDD5C5] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2C5E3B]"
@@ -320,10 +349,11 @@ export function AdminVehiclesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="vehicle-plate" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Number Plate
                   </label>
                   <input
+                    id="vehicle-plate"
                     type="text"
                     required
                     value={formPlate}
@@ -336,10 +366,11 @@ export function AdminVehiclesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="vehicle-brand" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Brand
                   </label>
                   <input
+                    id="vehicle-brand"
                     type="text"
                     value={formBrand}
                     onChange={(e) => setFormBrand(e.target.value)}
@@ -349,10 +380,11 @@ export function AdminVehiclesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="vehicle-model" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Model
                   </label>
                   <input
+                    id="vehicle-model"
                     type="text"
                     value={formModel}
                     onChange={(e) => setFormModel(e.target.value)}
@@ -364,10 +396,11 @@ export function AdminVehiclesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                  <label htmlFor="vehicle-color" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                     Color
                   </label>
                   <input
+                    id="vehicle-color"
                     type="text"
                     value={formColor}
                     onChange={(e) => setFormColor(e.target.value)}
@@ -378,10 +411,11 @@ export function AdminVehiclesPage() {
 
                 {formType !== 'BIKE' && (
                   <div>
-                    <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                    <label htmlFor="vehicle-slot" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                       Parking Bay Slot
                     </label>
                     <input
+                      id="vehicle-slot"
                       type="text"
                       value={formSlot}
                       onChange={(e) => setFormSlot(e.target.value.toUpperCase())}

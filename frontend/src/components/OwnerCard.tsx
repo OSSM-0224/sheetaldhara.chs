@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SearchResultItem } from '../types.ts';
 import { useLanguage } from '../lib/i18n.tsx';
 import { formatPlate } from '../lib/utils.ts';
@@ -25,6 +25,15 @@ interface OwnerCardProps {
 export function OwnerCard({ item }: OwnerCardProps) {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the pending "copied" reset on unmount, otherwise navigating away within
+  // 2s of copying triggers a setState on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    };
+  }, []);
 
   const isResident = item.source === 'resident';
   const isBike = item.vehicle_type === 'BIKE';
@@ -36,7 +45,8 @@ export function OwnerCard({ item }: OwnerCardProps) {
     if (!item.owner_phone) return;
     navigator.clipboard.writeText(item.owner_phone);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 2000);
   };
 
   return (

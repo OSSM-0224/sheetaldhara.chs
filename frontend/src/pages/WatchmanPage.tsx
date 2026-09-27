@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../lib/i18n.tsx';
 import { useAuth } from '../hooks/useAuth.ts';
-import { apiFetch } from '../lib/api.ts';
+import { apiRequest } from '../lib/api.ts';
 import { OutsiderVehicle, VehicleType } from '../types.ts';
 import { formatPlate } from '../lib/utils.ts';
 import {
@@ -14,8 +14,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Search,
-  LogOut,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card.tsx';
 import { Badge } from '../components/ui/badge.tsx';
@@ -38,25 +36,26 @@ export function WatchmanPage() {
   // Entries list state
   const [myEntries, setMyEntries] = useState<OutsiderVehicle[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
+  const [entriesError, setEntriesError] = useState<string | null>(null);
 
   // Load entries logged by this watchman
-  const loadEntries = async () => {
-    try {
-      const res = await apiFetch('/api/watchman/my-entries');
-      const data = await res.json();
-      if (res.ok) {
-        setMyEntries(data.vehicles || []);
-      }
-    } catch (e) {
-      console.error('Failed to load watchman entries:', e);
-    } finally {
-      setIsLoadingEntries(false);
+  const loadEntries = useCallback(async () => {
+    const res = await apiRequest<{ vehicles: OutsiderVehicle[] }>('/api/watchman/my-entries');
+    if (res.ok) {
+      setMyEntries(res.data.vehicles || []);
+      setEntriesError(null);
+    } else {
+      // Silently swallowed before, leaving the guard staring at a permanently
+      // empty "entries" list with no indication the request failed.
+      setMyEntries([]);
+      setEntriesError(res.error);
     }
-  };
+    setIsLoadingEntries(false);
+  }, []);
 
   useEffect(() => {
     loadEntries();
-  }, []);
+  }, [loadEntries]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,23 +77,18 @@ export function WatchmanPage() {
 
     setIsSubmitting(true);
 
-    try {
-      const res = await apiFetch('/api/watchman/outsider-vehicles', {
-        method: 'POST',
-        body: JSON.stringify({
-          plate: cleanPlate,
-          vehicle_type: vehicleType,
-          owner_phone: cleanPhone,
-          owner_name: ownerName.trim() || undefined,
-          note: note.trim() || undefined,
-        }),
-      });
+    const res = await apiRequest<{ message?: string }>('/api/watchman/outsider-vehicles', {
+      method: 'POST',
+      body: JSON.stringify({
+        plate: cleanPlate,
+        vehicle_type: vehicleType,
+        owner_phone: cleanPhone,
+        owner_name: ownerName.trim() || undefined,
+        note: note.trim() || undefined,
+      }),
+    });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to register vehicle entry.');
-      }
-
+    if (res.ok) {
       setSuccessMessage(`Vehicle ${cleanPlate} registered successfully!`);
       // Reset form
       setPlate('');
@@ -105,26 +99,22 @@ export function WatchmanPage() {
 
       // Refresh entries
       await loadEntries();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to log vehicle.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setFormError(res.error);
     }
+
+    setIsSubmitting(false);
   };
 
   const handleMarkExit = async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/watchman/outsider-vehicles/${id}/exit`, {
-        method: 'PATCH',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || 'Failed to update exit status.');
-        return;
-      }
+    const res = await apiRequest<{ message?: string }>(`/api/watchman/outsider-vehicles/${id}/exit`, {
+      method: 'PATCH',
+    });
+
+    if (res.ok) {
       await loadEntries();
-    } catch (err) {
-      alert('Error updating exit status.');
+    } else {
+      window.alert(res.error);
     }
   };
 
@@ -319,6 +309,22 @@ export function WatchmanPage() {
               {isLoadingEntries ? (
                 <div className="py-12 text-center text-xs text-[#888888]">
                   Loading logged entries...
+                </div>
+              ) : entriesError ? (
+                <div className="py-12 text-center text-xs space-y-3">
+                  <div className="inline-flex items-center gap-2 text-[#B93826]">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{entriesError}</span>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={loadEntries}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#DDD5C5] bg-white hover:bg-[#FAF7F0] transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 </div>
               ) : myEntries.length === 0 ? (
                 <div className="py-12 text-center text-[#888888] space-y-2">

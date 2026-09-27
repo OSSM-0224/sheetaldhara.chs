@@ -126,26 +126,30 @@ resident/watchman portal login.
 | `B-304` | `9820022334` | Priya Nair | Honda City (`MH02AB4821`, Slot `P-24`) |
 | `C-702` | `9820033445` | Amitabh Sen | Royal Enfield Classic 350 (`MH12CD4821`) |
 | `A-502` | `9820044556` | Sneha Kulkarni | Hyundai Creta (`MH01EF9090`), Ather 450X (`MH47XY9090`), TVS Jupiter (`MH01GH3312`) |
-| `D-201` | `9820077889` | Vikram Malhotra | Tata Nexon EV (`MH04JK1100`), Maruti Swift (`MH02MN7766`) |
+| `D-201` | `9820055667` | Vikram Malhotra | Tata Nexon EV (`MH04JK1100`), Maruti Swift (`MH02MN7766`) |
 | `B-103` | `9820066778` | Kavita Rao | None (can be assigned via Admin) |
 | `G-201` | `7506380156` | Om Mhatre | Pre-registered resident profile |
 
 ### Pre-Seeded Outsider Vehicles
 | Plate Number | Vehicle Type | Driver Phone | Driver Name | Visiting Purpose | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `MH04AX4821` | CAR | `9892011222` | Rajesh Verma | Guest visiting Flat B-304 | Inside |
-| `MH03CC9090` | BIKE | `9819033444` | Quick Courier | Amazon delivery for C-702 | Inside |
+| `MH14ZZ7788` | BIKE | `9911223344` | Rohan Sharma | Visiting flat D-201 | Inside |
+| `MH03QW5566` | CAR | `9822334455` | Fast Track Logistics | Delivery vehicle | Inside |
 
 ### Sample Plate Numbers to Try in Search
-- **`4821`**: Demonstrates multiple match disambiguation! Matches:
-  1. **Priya Nair's Honda City** (`MH02AB4821` - Resident)
-  2. **Amitabh Sen's Royal Enfield** (`MH12CD4821` - Resident)
-  3. **Rajesh Verma's Guest Car** (`MH04AX4821` - Visitor/Outsider)
-- **`9090`**: Matches Sneha Kulkarni's resident vehicles AND the Quick Courier delivery bike.
+- **`4821`**: Matches both **Priya Nair's Honda City** (`MH02AB4821`) and
+  **Amitabh Sen's Royal Enfield** (`MH12CD4821`). Good for testing multi-match
+  disambiguation when two owners share a plate suffix.
+- **`9090`**: Matches Sneha Kulkarni's two resident vehicles
+  (`MH01EF9090` and `MH47XY9090`).
 - **`1100`**: Matches Vikram Malhotra's **Tata Nexon EV** (`MH04JK1100`, Slot `P-09`).
-- **`MH04AX4821`**: Direct match for the visitor guest car.
+- **`MH03QW5566`**: Direct match for the seeded delivery car.
+- **`MH14ZZ7788`**: Direct match for the seeded visitor bike.
 
-> **Tip**: When logged in, use the top **Demo Switcher Bar** to switch between personas (Resident, Admin, Watchman) in one click!
+> **Tip**: The login page has **quick demo chips** that pre-fill the flat and
+> phone for a seeded resident. Admin sign-in lives on a separate page at
+> `/admin/login`, and the watchman tab on the same login page takes a phone and
+> password.
 
 ---
 
@@ -232,8 +236,13 @@ Run all commands from the repository root. `backend/` holds the API (entrypoint 
 - `POST /api/admin/vehicles`: Register a vehicle (`resident_id`, `vehicle_type`, `brand`, `model`, `plate`, `parking_number`).
 - `PATCH /api/admin/vehicles/:id`: Update vehicle details or assigned resident.
 - `DELETE /api/admin/vehicles/:id`: Delete vehicle from registry.
-- `GET /api/admin/search-logs`: Retrieve vehicle search audit logs.
+- `GET /api/admin/search-logs`: Retrieve vehicle search audit logs, with the actor's
+  resolved name/flat and the full list of matched plates for each query.
 - `POST /api/admin/reset-seed`: Reset society database back to initial demo seed.
+  **Destructive and irreversible** (5/hour limit). Requires an explicit
+  `{ "confirm": "RESET" }` body, and the search audit trail is deliberately
+  preserved. The response reports what was deleted and warns that watchman
+  accounts created through the admin UI are replaced by the seeded demo guard.
 
 ---
 
@@ -295,10 +304,39 @@ npm run lint
 ## 🔒 Security & Data Integrity Highlights
 
 1. **Input Normalization**: Removes non-alphanumeric noise to prevent mismatched queries.
-2. **Rate Limiting**: Protects `/api/auth/resident-signin` and `/api/search` against brute-force scraping.
+2. **Layered Rate Limiting**: Login limiters count only *failed* attempts (a shared
+   society IP no longer locks out every guard on one typo), plus separate limits for
+   the session probe, sign-out, the whole `/api/admin` surface, destructive operations,
+   and a wide global backstop across `/api/*`.
 3. **Role Authorization**: Admin routes strictly check JWT claims before processing any mutations.
 4. **Relational Deletion**: Removing a resident cleanly removes linked vehicle records, preventing orphaned data.
 5. **No Passwords for Residents**: Eliminates password reuse vulnerabilities and friction for elderly residents.
+6. **Signed Session Cookies**: The session JWT is issued as a `httpOnly` cookie signed
+   with `COOKIE_SECRET` (legacy unsigned cookies are still accepted so existing
+   sessions survive deploys). Password hashes are stripped in the models' `toJSON`
+   transform, so a bcrypt hash can never reach a response.
+7. **CSRF Origin Enforcement**: In a split frontend/API deploy the session cookie must
+   be `sameSite: 'none'`, which means the browser attaches it to cross-site requests.
+   Every state-changing request therefore has its `Origin` checked against
+   `CORS_ORIGINS` (with a `Sec-Fetch-Site` fallback), so a hostile page cannot drive
+   an authenticated mutation such as `reset-seed` through a plain cross-site form post.
+8. **Ownership-Scoped Writes**: A watchman can only mark exit the visitor entries they
+   themselves registered, closing an IDOR on `PATCH /api/watchman/outsider-vehicles/:id/exit`.
+9. **Guarded Data Reset**: `reset-seed` requires an explicit `{ "confirm": "RESET" }`
+   body, is rate-limited to 5/hour, preserves the search audit trail, and reports
+   exactly what it deleted.
+10. **Server-Side Validation**: Resident, watchman, and vehicle writes are validated
+    (10-digit phone, room format, minimum 8-character watchman password) so bad data
+    is rejected at the boundary instead of corrupting the registry.
+11. **Honest Error Handling**: Mongoose cast/validation errors and malformed JSON
+    return 400 with a useful message, and 5xx responses never leak internals or stack
+    traces in production. On the client, `apiRequest()` reads the status before
+    parsing, so a proxy 502 shows "the server ran into a problem" instead of
+    "Unexpected token '<'", and every request has a 20s timeout so a hung instance
+    can never leave the UI spinning forever.
+12. **Resilient Session Restore**: A generation counter discards stale `/api/auth/me`
+    responses, so submitting credentials while the initial session check is still in
+    flight can no longer be silently signed back out.
 
 ---
 

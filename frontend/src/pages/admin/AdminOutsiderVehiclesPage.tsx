@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../lib/api.ts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiRequest } from '../../lib/api.ts';
 import { OutsiderVehicle } from '../../types.ts';
 import { formatPlate } from '../../lib/utils.ts';
 import { Clock, Search, Phone, Car, Bike, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -12,32 +12,34 @@ export function AdminOutsiderVehiclesPage() {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'inside' | 'exited'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadOutsiders = async () => {
-    try {
-      const res = await apiFetch('/api/admin/outsider-vehicles');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load outsider records.');
-      setVehicles(data.vehicles || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+  const loadOutsiders = useCallback(async () => {
+    const res = await apiRequest<{ vehicles: OutsiderVehicle[] }>('/api/admin/outsider-vehicles');
+    if (res.ok) {
+      setVehicles(res.data.vehicles || []);
+      setLoadError(null);
+    } else {
+      // Was console.error-only, so a failed request looked like "no visitors today".
+      setVehicles([]);
+      setLoadError(res.error);
     }
-  };
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     loadOutsiders();
-  }, []);
+  }, [loadOutsiders]);
 
   const handleMarkExit = async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/admin/outsider-vehicles/${id}/exit`, { method: 'PATCH' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to mark exit.');
+    const res = await apiRequest<{ message?: string }>(`/api/admin/outsider-vehicles/${id}/exit`, {
+      method: 'PATCH',
+    });
+
+    if (res.ok) {
       await loadOutsiders();
-    } catch (err: any) {
-      alert(err.message || 'Operation failed.');
+    } else {
+      window.alert(res.error);
     }
   };
 
@@ -83,6 +85,7 @@ export function AdminOutsiderVehiclesPage() {
             <Search className="w-4 h-4 text-[#888888] absolute left-3 top-3" />
             <input
               type="text"
+              aria-label="Search outsider vehicles"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search plate, phone, visitor name..."
@@ -93,8 +96,9 @@ export function AdminOutsiderVehiclesPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#888888]">Filter:</span>
             <select
+              aria-label="Filter by status"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'inside' | 'exited')}
               className="px-2.5 py-1 text-xs rounded-lg border border-[#DDD5C5] bg-white text-[#111111] focus:outline-none"
             >
               <option value="all">All Statuses ({vehicles.length})</option>
@@ -107,6 +111,18 @@ export function AdminOutsiderVehiclesPage() {
         <CardContent className="p-0 overflow-x-auto">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-[#666666]">Loading outsider records...</div>
+          ) : loadError ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="inline-flex items-center gap-2 text-sm text-[#B93826]">
+                <AlertCircle className="w-4 h-4" />
+                <span>{loadError}</span>
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={loadOutsiders}>
+                  Retry
+                </Button>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-sm text-[#888888]">
               No outsider entries match your filter.

@@ -91,11 +91,14 @@ export interface SearchResponse {
 
 export interface SearchLogItem {
   id: string;
-  searched_by_resident_id: string;
   search_query: string;
-  matched_vehicle_id: string | null;
+  searched_by_type: 'resident' | 'admin' | 'watchman';
+  searched_by_id: string | null;
+  searcher_name: string | null;
+  searcher_room: string | null;
+  matched_plate: string | null;
+  match_source: 'registered' | 'outsider' | 'none';
+  match_count: number;
+  matched_plates: string[];
   created_at: string;
-  searcher_name?: string;
-  searcher_room?: string;
-  matched_plate?: string | null;
 }

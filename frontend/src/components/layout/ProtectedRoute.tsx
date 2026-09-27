@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { useLanguage } from '../../lib/i18n.tsx';
 import { UserRole } from '../../types.ts';
 import { Navbar } from './Navbar.tsx';
 
@@ -11,12 +12,13 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ allowedRoles, loginPath = '/login' }: ProtectedRouteProps) {
   const { role, isLoading } = useAuth();
+  const { t } = useLanguage();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F5F1E8] flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-3 border-[#DDD5C5] border-t-[#2C5E3B] rounded-full animate-spin mb-4" />
-        <p className="text-sm text-[#666666] font-medium">SHEETALDHARA CHS</p>
+        <p className="text-sm text-[#666666] font-medium">{t.societyName}</p>
       </div>
     );
   }
@@ -45,8 +47,8 @@ export function ProtectedRoute({ allowedRoles, loginPath = '/login' }: Protected
       </main>
       <footer className="border-t border-[#DDD5C5] bg-[#FAF7F0] py-6 text-center text-xs text-[#666666]">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="font-semibold text-[#333333]">SHEETALDHARA CO-OPERATIVE HOUSING SOCIETY LTD.</p>
-          <p className="mt-1">Secure Resident Parking & Gate Management System</p>
+          <p className="font-semibold text-[#333333]">{t.footerSociety}</p>
+          <p className="mt-1">{t.footerTagline}</p>
         </div>
       </footer>
     </div>

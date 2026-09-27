@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../lib/i18n.tsx';
 import { useAuth } from '../hooks/useAuth.ts';
-import { apiFetch } from '../lib/api.ts';
+import { apiRequest } from '../lib/api.ts';
 import { Vehicle } from '../types.ts';
 import { formatPlate } from '../lib/utils.ts';
-import { Car, Bike, HelpCircle, ShieldCheck, Home, Info, PlusCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card.tsx';
+import { Car, Bike, HelpCircle, ShieldCheck, Home, Info } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '../components/ui/card.tsx';
 
 export function MyVehiclesPage() {
   const { t } = useLanguage();
@@ -16,21 +16,25 @@ export function MyVehiclesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadMyVehicles() {
-      try {
-        const res = await apiFetch('/api/my-vehicles');
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to fetch your registered vehicles.');
-        }
-        setVehicles(data.vehicles || []);
-      } catch (err: any) {
-        setError(err.message || 'Error loading vehicles.');
-      } finally {
-        setIsLoading(false);
+      const res = await apiRequest<{ vehicles: Vehicle[] }>('/api/my-vehicles');
+      if (cancelled) return;
+      if (res.ok) {
+        setVehicles(res.data.vehicles || []);
+        setError(null);
+      } else {
+        setVehicles([]);
+        setError(res.error);
       }
+      setIsLoading(false);
     }
+
     loadMyVehicles();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -54,7 +58,7 @@ export function MyVehiclesPage() {
               <Home className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-[11px] font-bold text-[#888888] uppercase">Registered Flat</p>
+              <p className="text-[11px] font-bold text-[#888888] uppercase">{t.registeredFlat}</p>
               <p className="text-base font-bold text-[#111111]">{resident.room_number}</p>
             </div>
           </div>
@@ -108,7 +112,7 @@ export function MyVehiclesPage() {
                               {isCar ? t.car : isBike ? t.bike : t.other}
                             </span>
                             <h3 className="font-bold text-base text-[#111111] leading-none mt-0.5">
-                              {v.brand || 'Vehicle'} {v.model || ''}
+                              {v.brand || t.vehicleFallbackName} {v.model || ''}
                             </h3>
                           </div>
                         </div>
@@ -124,13 +128,13 @@ export function MyVehiclesPage() {
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         {v.color && (
                           <div className="bg-[#FAF7F0] p-2.5 rounded-lg border border-[#EAE4D7]">
-                            <span className="text-[#888888] block">Color</span>
+                            <span className="text-[#888888] block">{t.color}</span>
                             <span className="font-bold text-[#111111]">{v.color}</span>
                           </div>
                         )}
 
                         <div className="bg-[#FAF7F0] p-2.5 rounded-lg border border-[#EAE4D7]">
-                          <span className="text-[#888888] block">Last 4 Digits</span>
+                          <span className="text-[#888888] block">{t.lastFourDigits}</span>
                           <span className="font-mono font-bold text-[#111111]">{v.last_four_digits}</span>
                         </div>
                       </div>
@@ -164,7 +168,7 @@ export function MyVehiclesPage() {
           <div className="mt-6 p-4 rounded-xl bg-[#FAF7F0] border border-[#DDD5C5] flex items-start gap-3 text-xs text-[#666666]">
             <Info className="w-4 h-4 text-[#2C5E3B] shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-[#111111] mb-0.5">Need to add, update, or remove a vehicle?</p>
+              <p className="font-semibold text-[#111111] mb-0.5">{t.needVehicleHelp}</p>
               <p>{t.contactAdminToRegister}</p>
             </div>
           </div>

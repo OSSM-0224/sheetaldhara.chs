@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../lib/i18n.tsx';
-import { apiFetch } from '../lib/api.ts';
+import { apiRequest } from '../lib/api.ts';
 import { SearchResultItem, SearchResponse } from '../types.ts';
 import { OwnerCard } from '../components/OwnerCard.tsx';
 import { formatPlate } from '../lib/utils.ts';
@@ -40,28 +40,23 @@ export function DashboardPage() {
     setIsSearching(true);
     setError(null);
 
-    try {
-      const res = await apiFetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
-      const data: SearchResponse = await res.json();
+    const res = await apiRequest<SearchResponse>(`/api/search?q=${encodeURIComponent(trimmed)}`);
 
-      if (!res.ok) {
-        throw new Error((data as any).error || 'Failed to search registry.');
-      }
+    if (res.ok) {
+      setSearchResult(res.data);
 
-      setSearchResult(data);
-
-      if (data.matches.length === 1) {
-        setSelectedVehicle(data.matches[0]);
+      if (res.data.matches.length === 1) {
+        setSelectedVehicle(res.data.matches[0]);
       } else {
         setSelectedVehicle(null);
       }
-    } catch (err: any) {
-      setError(err.message || 'Error occurred during search.');
+    } else {
+      setError(res.error);
       setSearchResult(null);
       setSelectedVehicle(null);
-    } finally {
-      setIsSearching(false);
     }
+
+    setIsSearching(false);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

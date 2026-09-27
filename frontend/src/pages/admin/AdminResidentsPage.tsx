@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../lib/api.ts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiRequest } from '../../lib/api.ts';
 import { Resident } from '../../types.ts';
-import { Users, Plus, Edit2, Trash2, Search, Home, Phone, Car, AlertCircle, X } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Search, Home, Car, AlertCircle, X } from 'lucide-react';
 import { Button } from '../../components/ui/button.tsx';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.tsx';
+import { Card, CardContent } from '../../components/ui/card.tsx';
 
 export function AdminResidentsPage() {
   const [residents, setResidents] = useState<Resident[]>([]);
@@ -20,22 +20,21 @@ export function AdminResidentsPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadResidents = async () => {
-    try {
-      const res = await apiFetch('/api/admin/residents');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch residents.');
-      setResidents(data.residents || []);
-    } catch (err: any) {
-      setError(err.message || 'Error loading residents.');
-    } finally {
-      setIsLoading(false);
+  const loadResidents = useCallback(async () => {
+    const res = await apiRequest<{ residents: Resident[] }>('/api/admin/residents');
+    if (res.ok) {
+      setResidents(res.data.residents || []);
+      setError(null);
+    } else {
+      setResidents([]);
+      setError(res.error);
     }
-  };
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     loadResidents();
-  }, []);
+  }, [loadResidents]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -60,29 +59,26 @@ export function AdminResidentsPage() {
     setModalError(null);
     setIsSubmitting(true);
 
-    try {
-      const endpoint = editingId ? `/api/admin/residents/${editingId}` : '/api/admin/residents';
-      const method = editingId ? 'PATCH' : 'POST';
+    const endpoint = editingId ? `/api/admin/residents/${editingId}` : '/api/admin/residents';
+    const method = editingId ? 'PATCH' : 'POST';
 
-      const res = await apiFetch(endpoint, {
-        method,
-        body: JSON.stringify({
-          full_name: formName.trim(),
-          room_number: formRoom.trim().toUpperCase(),
-          phone: formPhone.replace(/[^0-9]/g, ''),
-        }),
-      });
+    const res = await apiRequest<{ message?: string }>(endpoint, {
+      method,
+      body: JSON.stringify({
+        full_name: formName.trim(),
+        room_number: formRoom.trim().toUpperCase(),
+        phone: formPhone.replace(/[^0-9]/g, ''),
+      }),
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Operation failed.');
-
+    if (res.ok) {
       setIsModalOpen(false);
       await loadResidents();
-    } catch (err: any) {
-      setModalError(err.message || 'Failed to save resident.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setModalError(res.error);
     }
+
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -90,13 +86,14 @@ export function AdminResidentsPage() {
       return;
     }
 
-    try {
-      const res = await apiFetch(`/api/admin/residents/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete resident.');
+    const res = await apiRequest<{ message?: string }>(`/api/admin/residents/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
       await loadResidents();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete resident.');
+    } else {
+      window.alert(res.error);
     }
   };
 
@@ -135,6 +132,7 @@ export function AdminResidentsPage() {
             <Search className="w-4 h-4 text-[#888888] absolute left-3 top-3" />
             <input
               type="text"
+              aria-label="Search residents"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search by name, flat, or phone..."
@@ -150,6 +148,18 @@ export function AdminResidentsPage() {
         <CardContent className="p-0 overflow-x-auto">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-[#666666]">Loading residents...</div>
+          ) : error ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="inline-flex items-center gap-2 text-sm text-[#B93826]">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+              <div>
+                <Button variant="outline" size="sm" onClick={loadResidents}>
+                  Retry
+                </Button>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-sm text-[#888888]">
               No residents found matching your filter.
@@ -188,16 +198,20 @@ export function AdminResidentsPage() {
                     </td>
                     <td className="py-3.5 px-4 sm:px-6 text-right space-x-2">
                       <button
+                        type="button"
                         onClick={() => handleOpenEdit(r)}
                         className="p-1.5 rounded text-[#555555] hover:text-[#111111] hover:bg-[#EAE4D7] transition-colors"
                         title="Edit Resident"
+                        aria-label={`Edit resident ${r.full_name}`}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(r.id, r.full_name)}
                         className="p-1.5 rounded text-[#B93826] hover:bg-[#FBEBEA] transition-colors"
                         title="Delete Resident"
+                        aria-label={`Delete resident ${r.full_name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -219,8 +233,10 @@ export function AdminResidentsPage() {
                 {editingId ? 'Edit Resident Profile' : 'Add New Resident'}
               </h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="text-[#666666] hover:text-[#111111]"
+                aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -235,10 +251,11 @@ export function AdminResidentsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="resident-name" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Full Name
                 </label>
                 <input
+                  id="resident-name"
                   type="text"
                   required
                   value={formName}
@@ -249,10 +266,11 @@ export function AdminResidentsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="resident-room" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Flat / Room Number
                 </label>
                 <input
+                  id="resident-room"
                   type="text"
                   required
                   value={formRoom}
@@ -263,10 +281,11 @@ export function AdminResidentsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#555555] mb-1">
+                <label htmlFor="resident-phone" className="block text-xs font-bold uppercase text-[#555555] mb-1">
                   Registered Mobile Phone (10 Digits)
                 </label>
                 <input
+                  id="resident-phone"
                   type="tel"
                   required
                   value={formPhone}
