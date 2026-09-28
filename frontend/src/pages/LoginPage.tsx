@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useLanguage } from '../lib/i18n.tsx';
-import { apiFetch } from '../lib/api.ts';
+import { apiRequest } from '../lib/api.ts';
 import { Building2, User, Lock, Phone, Home, Shield, ShieldCheck, AlertCircle } from 'lucide-react';
 import { LanguageSelector } from '../components/LanguageSelector.tsx';
 
@@ -33,7 +33,7 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await apiFetch('/api/auth/resident-signin', {
+      const res = await apiRequest('/api/auth/resident-signin', {
         method: 'POST',
         body: JSON.stringify({
           room_number: residentRoom.trim(),
@@ -41,12 +41,11 @@ export function LoginPage() {
         }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Sign-in failed.');
+        throw new Error(res.error || 'Sign-in failed.');
       }
 
-      login(data);
+      login(res.data);
       navigate('/dashboard');
     } catch (err: any) {
       setErrorMessage(err.message || 'Unable to sign in. Please try again.');
@@ -61,7 +60,7 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await apiFetch('/api/auth/watchman-login', {
+      const res = await apiRequest('/api/auth/watchman-login', {
         method: 'POST',
         body: JSON.stringify({
           phone: watchmanPhone.trim(),
@@ -69,12 +68,11 @@ export function LoginPage() {
         }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Watchman login failed.');
+        throw new Error(res.error || 'Watchman login failed.');
       }
 
-      login(data);
+      login(res.data);
       navigate('/watchman');
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid watchman phone or password.');

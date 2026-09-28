@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useLanguage } from '../lib/i18n.tsx';
-import { apiFetch } from '../lib/api.ts';
+import { apiRequest } from '../lib/api.ts';
 import { Building2, Lock, Phone, Shield, AlertCircle, ArrowLeft } from 'lucide-react';
 import { LanguageSelector } from '../components/LanguageSelector.tsx';
 
@@ -27,7 +27,7 @@ export function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await apiFetch('/api/auth/admin-login', {
+      const res = await apiRequest('/api/auth/admin-login', {
         method: 'POST',
         body: JSON.stringify({
           phone: phone.trim(),
@@ -35,12 +35,11 @@ export function AdminLoginPage() {
         }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Login failed.');
+        throw new Error(res.error || 'Login failed.');
       }
 
-      login(data);
+      login(res.data);
       navigate('/admin/residents');
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid administrator credentials.');
