@@ -1,40 +1,51 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.ts';
-import { useLanguage } from '../lib/i18n.tsx';
-import { apiRequest } from '../lib/api.ts';
-import { Building2, User, Lock, Phone, Home, Shield, ShieldCheck, AlertCircle } from 'lucide-react';
-import { LanguageSelector } from '../components/LanguageSelector.tsx';
+import React, { useState } from "react";
+import { Link, useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth.ts";
+import { useLanguage } from "../lib/i18n.tsx";
+import { apiRequest } from "../lib/api.ts";
+import {
+  Building2,
+  User,
+  Lock,
+  Phone,
+  Home,
+  Shield,
+  ShieldCheck,
+  AlertCircle,
+} from "lucide-react";
+import { LanguageSelector } from "../components/LanguageSelector.tsx";
 
 export function LoginPage() {
   const { role, login } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'resident' | 'watchman'>('resident');
+  const [activeTab, setActiveTab] = useState<"resident" | "watchman">(
+    "resident",
+  );
 
   // Form states
-  const [residentRoom, setResidentRoom] = useState('');
-  const [residentPhone, setResidentPhone] = useState('');
+  const [residentRoom, setResidentRoom] = useState("");
+  const [residentPhone, setResidentPhone] = useState("");
 
-  const [watchmanPhone, setWatchmanPhone] = useState('');
-  const [watchmanPassword, setWatchmanPassword] = useState('');
+  const [watchmanPhone, setWatchmanPhone] = useState("");
+  const [watchmanPassword, setWatchmanPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
 
   // If already logged in, redirect immediately
-  if (role === 'RESIDENT') return <Navigate to="/dashboard" replace />;
-  if (role === 'WATCHMAN') return <Navigate to="/watchman" replace />;
+  if (role === "RESIDENT") return <Navigate to="/dashboard" replace />;
+  if (role === "WATCHMAN") return <Navigate to="/watchman" replace />;
 
   const handleResidentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
+    setErrorMessage("");
     setIsLoading(true);
 
     try {
-      const res = await apiRequest('/api/auth/resident-signin', {
-        method: 'POST',
+      const res = await apiRequest("/api/auth/resident-signin", {
+        method: "POST",
         body: JSON.stringify({
           room_number: residentRoom.trim(),
           phone: residentPhone.trim(),
@@ -42,13 +53,13 @@ export function LoginPage() {
       });
 
       if (!res.ok) {
-        throw new Error(res.error || 'Sign-in failed.');
+        throw new Error(res.error || "Sign-in failed.");
       }
 
       login(res.data);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err: any) {
-      setErrorMessage(err.message || 'Unable to sign in. Please try again.');
+      setErrorMessage(err.message || "Unable to sign in. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -56,12 +67,12 @@ export function LoginPage() {
 
   const handleWatchmanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
+    setErrorMessage("");
     setIsLoading(true);
 
     try {
-      const res = await apiRequest('/api/auth/watchman-login', {
-        method: 'POST',
+      const res = await apiRequest("/api/auth/watchman-login", {
+        method: "POST",
         body: JSON.stringify({
           phone: watchmanPhone.trim(),
           password: watchmanPassword,
@@ -69,13 +80,13 @@ export function LoginPage() {
       });
 
       if (!res.ok) {
-        throw new Error(res.error || 'Watchman login failed.');
+        throw new Error(res.error || "Watchman login failed.");
       }
 
       login(res.data);
-      navigate('/watchman');
+      navigate("/watchman");
     } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid watchman phone or password.');
+      setErrorMessage(err.message || "Invalid watchman phone or password.");
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +113,9 @@ export function LoginPage() {
       <div className="max-w-md w-full mx-auto my-8 bg-white rounded-2xl border border-[#DDD5C5] shadow-md overflow-hidden">
         {/* Card Title */}
         <div className="bg-[#FAF7F0] border-b border-[#DDD5C5] p-6 text-center">
-          <h1 className="text-xl font-extrabold text-[#111111]">{t.loginTitle}</h1>
+          <h1 className="text-xl font-extrabold text-[#111111]">
+            {t.loginTitle}
+          </h1>
           <p className="text-xs text-[#666666] mt-1">{t.societySub}</p>
         </div>
 
@@ -111,13 +124,13 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => {
-              setActiveTab('resident');
-              setErrorMessage('');
+              setActiveTab("resident");
+              setErrorMessage("");
             }}
             className={`py-2 px-1 rounded-lg flex items-center justify-center gap-1.5 transition-all select-none ${
-              activeTab === 'resident'
-                ? 'bg-white text-[#2C5E3B] shadow-xs font-bold'
-                : 'text-[#666666] hover:text-[#111111]'
+              activeTab === "resident"
+                ? "bg-white text-[#2C5E3B] shadow-xs font-bold"
+                : "text-[#666666] hover:text-[#111111]"
             }`}
           >
             <User className="w-3.5 h-3.5 shrink-0" />
@@ -127,13 +140,13 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => {
-              setActiveTab('watchman');
-              setErrorMessage('');
+              setActiveTab("watchman");
+              setErrorMessage("");
             }}
             className={`py-2 px-1 rounded-lg flex items-center justify-center gap-1.5 transition-all select-none ${
-              activeTab === 'watchman'
-                ? 'bg-white text-[#2C5E3B] shadow-xs font-bold'
-                : 'text-[#666666] hover:text-[#111111]'
+              activeTab === "watchman"
+                ? "bg-white text-[#2C5E3B] shadow-xs font-bold"
+                : "text-[#666666] hover:text-[#111111]"
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
@@ -151,7 +164,7 @@ export function LoginPage() {
           )}
 
           {/* Resident Form */}
-          {activeTab === 'resident' && (
+          {activeTab === "resident" && (
             <form onSubmit={handleResidentSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#555555] mb-1.5">
@@ -186,7 +199,8 @@ export function LoginPage() {
                   />
                 </div>
                 <p className="text-[11px] text-[#888888] mt-1">
-                  Passwordless authentication for registered society flat members.
+                  Passwordless authentication for registered society flat
+                  members.
                 </p>
               </div>
 
@@ -197,48 +211,11 @@ export function LoginPage() {
               >
                 {isLoading ? t.loggingIn : t.signInBtn}
               </button>
-
-              {/* Demo Pre-fill Chips */}
-              <div className="pt-4 border-t border-[#EAE4D7] mt-4">
-                <p className="text-[11px] font-semibold text-[#888888] mb-2">QUICK DEMO RESIDENTS:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResidentRoom('B-304');
-                      setResidentPhone('9820022334');
-                    }}
-                    className="text-xs bg-[#FAF7F0] hover:bg-[#EAE4D7] px-2.5 py-1 rounded border border-[#DDD5C5] text-[#333333]"
-                  >
-                    Priya Nair (B-304)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResidentRoom('A-502');
-                      setResidentPhone('9820044556');
-                    }}
-                    className="text-xs bg-[#FAF7F0] hover:bg-[#EAE4D7] px-2.5 py-1 rounded border border-[#DDD5C5] text-[#333333]"
-                  >
-                    Sneha (A-502)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResidentRoom('D-201');
-                      setResidentPhone('9820055667');
-                    }}
-                    className="text-xs bg-[#FAF7F0] hover:bg-[#EAE4D7] px-2.5 py-1 rounded border border-[#DDD5C5] text-[#333333]"
-                  >
-                    Vikram (D-201)
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 
           {/* Watchman Form */}
-          {activeTab === 'watchman' && (
+          {activeTab === "watchman" && (
             <form onSubmit={handleWatchmanSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#555555] mb-1.5">
