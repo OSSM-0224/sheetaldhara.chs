@@ -69,3 +69,26 @@ code, kbd, samp, pre, .font-mono {
 .animate-slide-in-right {
   animation: slideInRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: #2c5e3b;
+  color: #f5f1e8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
