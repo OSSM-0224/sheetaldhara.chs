@@ -1,7 +1,7 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth.ts';
+import { createBrowserRouter } from 'react-router-dom';
 
+import { LandingPage } from './pages/LandingPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { AdminLoginPage } from './pages/AdminLoginPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
@@ -16,39 +16,11 @@ import { NotFoundPage } from './pages/NotFoundPage.tsx';
 
 import { ProtectedRoute } from './components/layout/ProtectedRoute.tsx';
 
-// Role-based root redirector component
-function RootRedirector() {
-  const { role, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F5F1E8] flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 border-3 border-[#DDD5C5] border-t-[#2C5E3B] rounded-full animate-spin mb-3" />
-        <p className="text-sm text-[#666666] font-medium">SHEETALDHARA CHS</p>
-      </div>
-    );
-  }
-
-  if (!role) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (role === 'WATCHMAN') {
-    return <Navigate to="/watchman" replace />;
-  }
-
-  if (role === 'ADMIN') {
-    return <Navigate to="/admin/residents" replace />;
-  }
-
-  return <Navigate to="/dashboard" replace />;
-}
-
 export const router = createBrowserRouter([
-  // Role redirect root
+  // Public landing page
   {
     path: '/',
-    element: <RootRedirector />,
+    element: <LandingPage />,
   },
   // Public Login
   {
